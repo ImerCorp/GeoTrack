@@ -20,6 +20,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
+import fr.upjv.geotrack.HomeActivity;
 import fr.upjv.geotrack.MainActivity;
 import fr.upjv.geotrack.R;
 
@@ -94,7 +95,7 @@ public class SignInFragment extends Fragment {
                         if (task.isSuccessful()) {
                             // Sign in success, navigate to MainActivity
                             Toast.makeText(getContext(), "Authentication successful", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(getContext(), MainActivity.class);
+                            Intent intent = new Intent(getContext(), HomeActivity.class);
                             startActivity(intent);
                             getActivity().finish();
                         } else {

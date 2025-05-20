@@ -27,6 +27,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.HashMap;
 import java.util.Map;
 
+import fr.upjv.geotrack.HomeActivity;
 import fr.upjv.geotrack.MainActivity;
 import fr.upjv.geotrack.R;
 
@@ -125,7 +126,12 @@ public class SignUpFragment extends Fragment {
                                         public void onComplete(@NonNull Task<Void> task) {
                                             if (task.isSuccessful()) {
                                                 // Profile updated, now save user data to Firestore
-                                                saveUserToFirestore(user.getUid(), name, email);
+                                                // saveUserToFirestore(user.getUid(), name, email);
+
+                                                // Navigate to MainActivity
+                                                Intent intent = new Intent(getContext(), HomeActivity.class);
+                                                startActivity(intent);
+                                                getActivity().finish();
                                             }
                                         }
                                     });
@@ -157,7 +163,7 @@ public class SignUpFragment extends Fragment {
                         Toast.makeText(getContext(), "Registration successful", Toast.LENGTH_SHORT).show();
 
                         // Navigate to MainActivity
-                        Intent intent = new Intent(getContext(), MainActivity.class);
+                        Intent intent = new Intent(getContext(), HomeActivity.class);
                         startActivity(intent);
                         getActivity().finish();
                     }
