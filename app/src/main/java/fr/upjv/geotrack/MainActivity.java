@@ -40,12 +40,17 @@ public class MainActivity extends AppCompatActivity {
             // If not signed in, redirect to AuthActivity
             startActivity(new Intent(MainActivity.this, AuthActivity.class));
             finish();
+            // User is signed in
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle("Welcome, " + currentUser.getDisplayName());
+            }
             return;
         }
-
-        // User is signed in
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("Welcome, " + currentUser.getDisplayName());
+        else {
+            // If not signed in, redirect to AuthActivity
+            startActivity(new Intent(MainActivity.this, HomeActivity.class));
+            finish();
+            return;
         }
     }
 
