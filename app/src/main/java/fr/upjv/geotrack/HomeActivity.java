@@ -1,15 +1,26 @@
 package fr.upjv.geotrack;
 
+import android.Manifest;
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import fr.upjv.geotrack.services.LocationService;
 
 public class HomeActivity extends AppCompatActivity {
 
@@ -19,6 +30,10 @@ public class HomeActivity extends AppCompatActivity {
 
     // Components
     private TextView textView;
+
+    // Permission request codes
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
+    private static final int BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE = 1002;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,11 +52,121 @@ public class HomeActivity extends AppCompatActivity {
         textView = findViewById(R.id.textView);
         if (currentUser != null) {
             textView.setText("Welcome, " + currentUser.getEmail() + " + " + currentUser.getUid());
+
+            // Check and request location permissions
+            checkLocationPermission();
         } else {
             // If not signed in, redirect to AuthActivity
             startActivity(new Intent(HomeActivity.this, MainActivity.class));
             finish();
             return;
         }
+    }
+
+    private void checkLocationPermission() {
+        // Check if we have foreground location permissions
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            // Request foreground location permissions
+            ActivityCompat.requestPermissions(this,
+                    new String[]{
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    },
+                    LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
+            // We have foreground location permissions, now check for background location
+            checkBackgroundLocationPermission();
+        }
+    }
+
+    private void checkBackgroundLocationPermission() {
+        // Background location permission is only needed on Android 10 (Q) and above
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+                // Request background location permission
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                        BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE);
+            } else {
+                // All permissions granted, start location service
+                startLocationService();
+            }
+        } else {
+            // For pre-Android 10, we don't need separate background permission
+            startLocationService();
+        }
+    }
+
+    private void startLocationService() {
+        if (!isLocationServiceRunning()) {
+            Intent serviceIntent = new Intent(this, LocationService.class);
+
+            // Start foreground service
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+
+            Toast.makeText(this, "Location service started", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Location service already running", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private boolean isLocationServiceRunning() {
+        ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        if (activityManager != null) {
+            for (ActivityManager.RunningServiceInfo service :
+                    activityManager.getRunningServices(Integer.MAX_VALUE)) {
+                if (LocationService.class.getName().equals(service.service.getClassName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED &&
+                    grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+
+                // Foreground location permissions granted, now check background
+                checkBackgroundLocationPermission();
+
+            } else {
+                // Permissions denied
+                Toast.makeText(this,
+                        "Location permissions denied. The app needs location access to function properly.",
+                        Toast.LENGTH_LONG).show();
+            }
+        } else if (requestCode == BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Background location permission granted
+                startLocationService();
+            } else {
+                // Background permission denied
+                Toast.makeText(this,
+                        "Background location permission denied. Location will only work when the app is open.",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Note: We DON'T stop the location service here since we want it to run permanently
     }
 }
