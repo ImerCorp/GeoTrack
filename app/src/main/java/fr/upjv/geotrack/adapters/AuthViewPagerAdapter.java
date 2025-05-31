@@ -1,4 +1,4 @@
-package fr.upjv.geotrack;
+package fr.upjv.geotrack.adapters;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;

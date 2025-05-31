@@ -24,7 +24,7 @@ public class AuthActivity extends AppCompatActivity {
 
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
-    private fr.upjv.geotrack.AuthViewPagerAdapter authViewPagerAdapter;
+    private fr.upjv.geotrack.adapters.AuthViewPagerAdapter authViewPagerAdapter;
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
 
@@ -42,7 +42,7 @@ public class AuthActivity extends AppCompatActivity {
         viewPager = findViewById(R.id.viewPager);
 
         // Set up ViewPager with fragments
-        authViewPagerAdapter = new fr.upjv.geotrack.AuthViewPagerAdapter(this);
+        authViewPagerAdapter = new fr.upjv.geotrack.adapters.AuthViewPagerAdapter(this);
         viewPager.setAdapter(authViewPagerAdapter);
 
         // Connect TabLayout with ViewPager2
