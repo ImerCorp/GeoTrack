@@ -9,10 +9,10 @@ public class Localisation {
     private String id;
     private String userUUID;
     private Date timestamp;
-    private float longitude;
-    private float latitude;
+    private double longitude;
+    private double latitude;
 
-    public Localisation(String Id, String UserUUID, Date Time, float Longitude, float Latitude) {
+    public Localisation(String Id, String UserUUID, Date Time, double Latitude, double Longitude) {
         this.id = Id;
         this.userUUID = UserUUID;
         this.timestamp = Time;
@@ -28,5 +28,9 @@ public class Localisation {
         hash.put("longitude", this.longitude);
         hash.put("latitude", this.latitude);
         return hash;
+    }
+
+    public String getId(){
+        return this.id;
     }
 }
