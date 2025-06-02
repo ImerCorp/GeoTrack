@@ -7,20 +7,30 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:796288534900:android:31fd4cfc7ba9e6d51d4421",
+        "mobilesdk_app_id": "1:796288534900:android:a53d949b87066a9a1d4421",
         "android_client_info": {
           "package_name": "fr.upjv.geotrack"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "796288534900-9i9umn1kivjiel19pd9fka06ajaiu8fd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBY-AbPmIeAtEicye_hBOHXiLTN2qHVyvg"
+          "current_key": "AIzaSyDXjgN3RexEcVu0JBFaNM23rnUVEn-oA7c"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "796288534900-9i9umn1kivjiel19pd9fka06ajaiu8fd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
