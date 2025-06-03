@@ -30,7 +30,7 @@ public class UserController {
     public void saveUser(User user){
         // Add a new document with user ID
         DBFireStore.collection("users")
-                .document(user.getEmail())
+                .document(user.getUid())
                 .set(user.toJson())
                 .addOnSuccessListener(
                         success -> {}
