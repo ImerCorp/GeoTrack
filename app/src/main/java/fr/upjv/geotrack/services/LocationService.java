@@ -24,7 +24,6 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.Date;
 import java.util.UUID;
@@ -32,12 +31,12 @@ import java.util.UUID;
 import fr.upjv.geotrack.R;
 import fr.upjv.geotrack.models.Localisation;
 
+import fr.upjv.geotrack.controllers.LocalisationController;
+
 public class LocationService extends Service {
     private static final int NOTIFICATION_ID = 1001;
     private static final String CHANNEL_ID = "LocationServiceChannel";
     private static final String TAG = "LocationService";
-
-    private FirebaseFirestore DBFireStore;
     private FirebaseAuth mAuth;
     private FirebaseUser currentUser;
     private FusedLocationProviderClient fusedLocationClient;
@@ -64,7 +63,6 @@ public class LocationService extends Service {
         }
 
         // Initialize Firebase components
-        this.DBFireStore = FirebaseFirestore.getInstance();
         this.mAuth = FirebaseAuth.getInstance();
         this.currentUser = mAuth.getCurrentUser();
 
@@ -125,17 +123,7 @@ public class LocationService extends Service {
                                     location.getLongitude()
                             );
 
-                            // Save to Firestore with unique document ID
-                            DBFireStore
-                                    .collection("localisation")
-                                    .document(localisation.getId()) // Use unique ID instead of "test"
-                                    .set(localisation.toJson())
-                                    .addOnSuccessListener(aVoid -> {
-                                        Log.d(TAG, "Location saved successfully to Firestore");
-                                    })
-                                    .addOnFailureListener(e -> {
-                                        Log.e(TAG, "Failed to save location to Firestore", e);
-                                    });
+                            new LocalisationController().saveLocalisation(localisation, this.TAG);
                         } else {
                             Log.w(TAG, "Location is null - GPS might be disabled");
                         }

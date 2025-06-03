@@ -1,12 +1,10 @@
-package fr.upjv.geotrack.broadcast;
+package fr.upjv.geotrack.services;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.util.Log;
-
-import fr.upjv.geotrack.services.LocationService;
 
 public class BootCompletedReceiver extends BroadcastReceiver {
     private static final String TAG = "BootCompletedReceiver";
