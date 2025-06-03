@@ -47,7 +47,9 @@ import java.util.List;
 import java.util.Date;
 import java.util.UUID;
 
+import fr.upjv.geotrack.controllers.UserController;
 import fr.upjv.geotrack.models.Localisation;
+import fr.upjv.geotrack.models.User;
 import fr.upjv.geotrack.services.LocationService;
 
 
@@ -91,6 +93,12 @@ public class HomeActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             // 2) Vérifier si l’utilisateur est bien connecté
             this.currentUser = mAuth.getCurrentUser();
+            new UserController("HomeActivity")
+                    .saveUser(new User(
+                            currentUser.getUid(),
+                            currentUser.getEmail(),
+                            currentUser.getDisplayName()
+                    ));
             if (currentUser != null) {
                 // Check and request location permissions
                 checkLocationPermission();

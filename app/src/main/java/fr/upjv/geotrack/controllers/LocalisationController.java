@@ -25,7 +25,7 @@ public class LocalisationController {
     public void saveLocalisation(Localisation localisation, String TAG) {
         // Save to Firestore with unique document ID
         DBFireStore
-                .collection("localisation")
+                .collection(this.collectionName)
                 .document(localisation.getId()) // Use unique ID instead of "test"
                 .set(localisation.toJson())
                 .addOnSuccessListener(aVoid -> {
