@@ -2,4 +2,9 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Add these colors to your existing colors.xml file -->
+    <color name="slider_text_color">#666666</color>
+    <color name="slider_text_active">#FFFFFF</color>
+    <color name="slider_background">#E0E0E0</color>
+    <color name="slider_indicator">#2196F3</color>
 </resources>
