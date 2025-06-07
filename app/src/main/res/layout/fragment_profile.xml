@@ -1,127 +1,184 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/swipe_refresh_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5"
-    android:fillViewport="true">
+    android:background="#F5F5F5">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="0dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <!-- Header Section with Profile Image and Basic Info -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/profile_header_gradient"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="48dp">
+            android:orientation="vertical">
 
-            <!-- Profile Image -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:layout_marginBottom="24dp"
-                app:cardCornerRadius="60dp"
-                app:cardElevation="8dp">
-
-                <ImageView
-                    android:id="@+id/profile_image"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_default_profile"
-                    tools:src="@drawable/ic_default_profile" />
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Display Name -->
-            <TextView
-                android:id="@+id/display_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:textColor="@android:color/white"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                tools:text="John Doe" />
-
-            <!-- Email Address -->
-            <TextView
-                android:id="@+id/email_address"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:alpha="0.9"
-                tools:text="john.doe@example.com" />
-
-            <!-- Member Since -->
-            <TextView
-                android:id="@+id/member_since"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:alpha="0.8"
-                tools:text="Member since January 2024" />
-
-        </LinearLayout>
-
-        <!-- Journey Management Section -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
-
+            <!-- Header Section with Profile Image and Basic Info -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@drawable/profile_header_gradient"
+                android:gravity="center"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="32dp">
 
-                <!-- Journey Section Header -->
-                <LinearLayout
+                <!-- Profile Image -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="50dp"
+                    app:cardElevation="8dp">
+
+                    <ImageView
+                        android:id="@+id/profile_image"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_default_profile"
+                        tools:src="@drawable/ic_default_profile" />
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Display Name -->
+                <TextView
+                    android:id="@+id/display_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    tools:text="John Doe" />
+
+                <!-- Email Address -->
+                <TextView
+                    android:id="@+id/email_address"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="4dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:alpha="0.9"
+                    tools:text="john.doe@example.com" />
+
+                <!-- Member Since -->
+                <TextView
+                    android:id="@+id/member_since"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:alpha="0.8"
+                    tools:text="Member since January 2024" />
+
+                <!-- Journey Count -->
+                <TextView
+                    android:id="@+id/journey_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_white_background"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="@color/primary_color"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    tools:text="15 journeys" />
+
+            </LinearLayout>
+
+            <!-- Search and Filter Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:elevation="2dp"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Search Bar -->
+                <SearchView
+                    android:id="@+id/search_view"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="16dp">
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/search_background"
+                    android:iconifiedByDefault="false"
+                    android:queryHint="Search journeys..."
+                    android:textSize="14sp" />
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="My Journeys"
-                        android:textColor="#333333"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                <!-- Filter Chips -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none">
 
-                    <Button
-                        android:id="@+id/add_journey_button"
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/filter_chip_group"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/button_primary"
-                        android:text="+ Add Journey"
-                        android:textColor="@android:color/white"
-                        android:textSize="14sp"
-                        android:padding="8dp" />
+                        android:orientation="horizontal"
+                        app:chipSpacing="8dp"
+                        app:singleSelection="false" />
 
-                </LinearLayout>
+                </HorizontalScrollView>
 
-                <!-- Journey List -->
+            </LinearLayout>
+
+            <!-- Journey Section Header -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@android:color/white"
+                android:elevation="1dp"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:text="My Journeys"
+                    android:textColor="#333333"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/add_journey_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:background="@drawable/button_primary"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="16dp"
+                    android:text="+ Add Journey"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+            <!-- Journey List Container -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="8dp"
+                android:paddingBottom="16dp">
+
+                <!-- Journey List RecyclerView -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/journeys_recycler_view"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="16dp"
+                    tools:itemCount="5"
                     tools:listitem="@layout/item_journey" />
 
                 <!-- Empty State -->
@@ -129,12 +186,13 @@
                     android:id="@+id/empty_state_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
                     android:gravity="center"
-                    android:padding="32dp"
+                    android:orientation="vertical"
+                    android:padding="48dp"
                     android:visibility="gone">
 
                     <TextView
+                        android:id="@+id/empty_message"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="No journeys yet"
@@ -153,21 +211,21 @@
 
                 </LinearLayout>
 
-            </LinearLayout>
+            </FrameLayout>
 
-        </androidx.cardview.widget.CardView>
+            <!-- Version Info -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="32dp"
+                android:gravity="center"
+                android:text="GeoTrack v1.0.0"
+                android:textColor="#999999"
+                android:textSize="12sp" />
 
-        <!-- Version Info -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="32dp"
-            android:gravity="center"
-            android:text="GeoTrack v1.0.0"
-            android:textColor="#999999"
-            android:textSize="12sp" />
+        </LinearLayout>
 
-    </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-</ScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -7,4 +7,5 @@
     <color name="slider_text_active">#FFFFFF</color>
     <color name="slider_background">#E0E0E0</color>
     <color name="slider_indicator">#2196F3</color>
+    <color name="primary_color">#E0E0E0</color>
 </resources>
