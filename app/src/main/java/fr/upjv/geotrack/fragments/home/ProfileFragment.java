@@ -222,12 +222,13 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
                                 Date start = document.getDate("start");
                                 Date end = document.getDate("end");
                                 String name = document.getString("name");
+                                String description = document.getString("description"); // NEW
 
                                 // Handle image paths
                                 List<String> imagePaths = (List<String>) document.get("imagePaths");
                                 String thumbnailPath = document.getString("thumbnailPath");
 
-                                Journey journey = new Journey(id, userUUIDDoc, start, end, name, imagePaths, thumbnailPath);
+                                Journey journey = new Journey(id, userUUIDDoc, start, end, name, description, imagePaths, thumbnailPath);
                                 journeyList.add(journey);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error parsing journey document", e);
@@ -260,20 +261,21 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
 
         TextView dialogTitle = dialogView.findViewById(R.id.dialog_title);
         TextInputEditText nameInput = dialogView.findViewById(R.id.journey_name_input);
+        TextInputEditText descriptionInput = dialogView.findViewById(R.id.journey_description_input);
         TextInputEditText startDateInput = dialogView.findViewById(R.id.start_date_input);
         TextInputEditText endDateInput = dialogView.findViewById(R.id.end_date_input);
 
-        // Image selection components
+        // Initialize image components
         selectImagesButton = dialogView.findViewById(R.id.select_images_button);
         selectedImagesCount = dialogView.findViewById(R.id.selected_images_count);
         imagePreviewRecyclerView = dialogView.findViewById(R.id.image_preview_recycler);
 
-        // Initialize the saveButton and cancelButton here
-        Button cancelButton = dialogView.findViewById(R.id.cancel_button);
-        saveButton = dialogView.findViewById(R.id.save_button); // Now it's accessible class-wide
+        // Initialize Calendar objects
+        Calendar startCalendar = Calendar.getInstance();
+        Calendar endCalendar = Calendar.getInstance();
 
-        // Setup image preview RecyclerView
-        setupImagePreviewRecyclerView();
+        // Set default end date to 7 days from start date
+        endCalendar.add(Calendar.DAY_OF_MONTH, 7);
 
         // Setup for edit mode
         boolean isEditMode = existingJourney != null;
@@ -282,6 +284,11 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         if (isEditMode) {
             dialogTitle.setText("Edit Journey");
             nameInput.setText(existingJourney.getName());
+            descriptionInput.setText(existingJourney.getDescription());
+
+            // Set calendar dates from existing journey
+            startCalendar.setTime(existingJourney.getStart());
+            endCalendar.setTime(existingJourney.getEnd());
 
             SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
             startDateInput.setText(dateFormat.format(existingJourney.getStart()));
@@ -290,29 +297,41 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
             // Load existing images if any
             loadExistingImages(existingJourney);
         } else {
+            // For new journey, set default dates
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+            startDateInput.setText(dateFormat.format(startCalendar.getTime()));
+            endDateInput.setText(dateFormat.format(endCalendar.getTime()));
+
             selectedImageUris.clear();
             updateImagePreview();
-        }
-
-        // Date picker setup
-        Calendar startCalendar = Calendar.getInstance();
-        Calendar endCalendar = Calendar.getInstance();
-
-        if (isEditMode) {
-            startCalendar.setTime(existingJourney.getStart());
-            endCalendar.setTime(existingJourney.getEnd());
         }
 
         // Setup date pickers
         setupDatePickers(startDateInput, endDateInput, startCalendar, endCalendar);
 
-        // Setup image selection button
-        selectImagesButton.setOnClickListener(v -> openImagePicker());
+        // Setup image preview RecyclerView
+        setupImagePreviewRecyclerView();
 
+        // Setup image selection button
+        selectImagesButton.setOnClickListener(v -> {
+            if (selectedImageUris.size() >= MAX_IMAGES) {
+                Toast.makeText(getContext(), "Maximum " + MAX_IMAGES + " images allowed", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            openImagePicker();
+        });
+
+        // Create dialog
         AlertDialog dialog = new AlertDialog.Builder(getContext())
                 .setView(dialogView)
+                .setCancelable(true)
                 .create();
 
+        // Find buttons from dialog view
+        Button cancelButton = dialogView.findViewById(R.id.cancel_button);
+        saveButton = dialogView.findViewById(R.id.save_button);
+
+        // Setup button listeners
         cancelButton.setOnClickListener(v -> {
             selectedImageUris.clear();
             dialog.dismiss();
@@ -320,6 +339,7 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
 
         saveButton.setOnClickListener(v -> {
             String name = nameInput.getText().toString().trim();
+            String description = descriptionInput.getText().toString().trim();
 
             if (name.isEmpty()) {
                 Toast.makeText(getContext(), "Please enter a journey name", Toast.LENGTH_SHORT).show();
@@ -331,22 +351,18 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
                 return;
             }
 
-            // Create or update journey
+            // Create or update journey with description
             String journeyId = isEditMode ? existingJourney.getId() : UUID.randomUUID().toString();
             Journey journey = new Journey(
                     journeyId,
                     currentUser.getUid(),
                     startCalendar.getTime(),
                     endCalendar.getTime(),
-                    name
+                    name,
+                    description
             );
 
-            // If editing, preserve existing image paths
-            if (isEditMode && existingJourney.getImagePaths() != null) {
-                journey.setImagePaths(new ArrayList<>(existingJourney.getImagePaths()));
-                journey.setThumbnailPath(existingJourney.getThumbnailPath());
-            }
-
+            // Save journey with images
             if (isEditMode) {
                 updateJourneyWithImages(journey, dialog);
             } else {

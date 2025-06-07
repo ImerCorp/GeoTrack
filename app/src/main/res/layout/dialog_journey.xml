@@ -37,6 +37,25 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Journey Description -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:hint="Description (Optional)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/journey_description_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLines="3"
+                android:minLines="2"
+                android:gravity="top|start"
+                android:scrollbars="vertical" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
         <!-- Start Date -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"

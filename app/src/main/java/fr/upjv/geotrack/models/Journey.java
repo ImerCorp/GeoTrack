@@ -14,6 +14,7 @@ public class Journey {
     private Date start;
     private Date end;
     private String name;
+    private String description; // New field for journey description
     private List<String> imagePaths; // Storage paths for Firebase Storage
     private String thumbnailPath; // Main thumbnail image path
 
@@ -24,23 +25,38 @@ public class Journey {
         this.start = Start;
         this.end = End;
         this.name = Name;
+        this.description = ""; // Default empty description
         this.imagePaths = new ArrayList<>();
         this.thumbnailPath = null;
     }
 
-    // Constructor with image paths
-    public Journey(String Id, String UserUUID, Date Start, Date End, String Name, List<String> ImagePaths, String ThumbnailPath) {
+    // Constructor with description
+    public Journey(String Id, String UserUUID, Date Start, Date End, String Name, String Description) {
         this.id = Id;
         this.userUUID = UserUUID;
         this.start = Start;
         this.end = End;
         this.name = Name;
+        this.description = Description != null ? Description : "";
+        this.imagePaths = new ArrayList<>();
+        this.thumbnailPath = null;
+    }
+
+    // Constructor with image paths and description
+    public Journey(String Id, String UserUUID, Date Start, Date End, String Name, String Description, List<String> ImagePaths, String ThumbnailPath) {
+        this.id = Id;
+        this.userUUID = UserUUID;
+        this.start = Start;
+        this.end = End;
+        this.name = Name;
+        this.description = Description != null ? Description : "";
         this.imagePaths = ImagePaths != null ? ImagePaths : new ArrayList<>();
         this.thumbnailPath = ThumbnailPath;
     }
 
     // Default constructor for Firebase
     public Journey() {
+        this.description = "";
         this.imagePaths = new ArrayList<>();
     }
 
@@ -52,6 +68,7 @@ public class Journey {
         hash.put("start", this.start);
         hash.put("end", this.end);
         hash.put("name", this.name);
+        hash.put("description", this.description);
         hash.put("imagePaths", this.imagePaths);
         hash.put("thumbnailPath", this.thumbnailPath);
         return hash;
@@ -76,6 +93,10 @@ public class Journey {
 
     public String getName() {
         return name;
+    }
+
+    public String getDescription() {
+        return description;
     }
 
     public List<String> getImagePaths() {
@@ -105,6 +126,10 @@ public class Journey {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description != null ? description : "";
     }
 
     public void setImagePaths(List<String> imagePaths) {
@@ -300,6 +325,29 @@ public class Journey {
     }
 
     /**
+     * Check if the journey has a description
+     * @return true if description is not null and not empty
+     */
+    public boolean hasDescription() {
+        return description != null && !description.trim().isEmpty();
+    }
+
+    /**
+     * Get a truncated version of the description
+     * @param maxLength Maximum length of the truncated description
+     * @return Truncated description with "..." if needed
+     */
+    public String getTruncatedDescription(int maxLength) {
+        if (!hasDescription()) return "";
+
+        if (description.length() <= maxLength) {
+            return description;
+        }
+
+        return description.substring(0, maxLength) + "...";
+    }
+
+    /**
      * Validate if the journey data is valid
      * @return true if journey data is valid
      */
@@ -319,6 +367,7 @@ public class Journey {
                 ", start=" + start +
                 ", end=" + end +
                 ", name='" + name + '\'' +
+                ", description='" + (hasDescription() ? getTruncatedDescription(50) : "No description") + '\'' +
                 ", imageCount=" + getImageCount() +
                 ", thumbnailPath='" + thumbnailPath + '\'' +
                 '}';
