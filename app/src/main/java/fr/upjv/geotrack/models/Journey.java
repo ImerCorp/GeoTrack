@@ -1,8 +1,10 @@
 package fr.upjv.geotrack.models;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -12,21 +14,34 @@ public class Journey {
     private Date start;
     private Date end;
     private String name;
-    private String imageURL;
+    private List<String> imagePaths; // Storage paths for Firebase Storage
+    private String thumbnailPath; // Main thumbnail image path
 
     // Constructor
-    public Journey(String Id, String UserUUID, Date Start, Date End, String Name, String ImageURL) {
+    public Journey(String Id, String UserUUID, Date Start, Date End, String Name) {
         this.id = Id;
         this.userUUID = UserUUID;
         this.start = Start;
         this.end = End;
         this.name = Name;
-        this.imageURL = ImageURL;
+        this.imagePaths = new ArrayList<>();
+        this.thumbnailPath = null;
+    }
+
+    // Constructor with image paths
+    public Journey(String Id, String UserUUID, Date Start, Date End, String Name, List<String> ImagePaths, String ThumbnailPath) {
+        this.id = Id;
+        this.userUUID = UserUUID;
+        this.start = Start;
+        this.end = End;
+        this.name = Name;
+        this.imagePaths = ImagePaths != null ? ImagePaths : new ArrayList<>();
+        this.thumbnailPath = ThumbnailPath;
     }
 
     // Default constructor for Firebase
     public Journey() {
-        // Required empty constructor for Firebase
+        this.imagePaths = new ArrayList<>();
     }
 
     // Convert to HashMap for Firebase storage
@@ -37,7 +52,8 @@ public class Journey {
         hash.put("start", this.start);
         hash.put("end", this.end);
         hash.put("name", this.name);
-        hash.put("imageURL", this.imageURL);
+        hash.put("imagePaths", this.imagePaths);
+        hash.put("thumbnailPath", this.thumbnailPath);
         return hash;
     }
 
@@ -62,8 +78,12 @@ public class Journey {
         return name;
     }
 
-    public String getImageURL() {
-        return imageURL;
+    public List<String> getImagePaths() {
+        return imagePaths;
+    }
+
+    public String getThumbnailPath() {
+        return thumbnailPath;
     }
 
     // Setters
@@ -87,8 +107,101 @@ public class Journey {
         this.name = name;
     }
 
-    public void setImageURL(String imageURL) {
-        this.imageURL = imageURL;
+    public void setImagePaths(List<String> imagePaths) {
+        this.imagePaths = imagePaths != null ? imagePaths : new ArrayList<>();
+    }
+
+    public void setThumbnailPath(String thumbnailPath) {
+        this.thumbnailPath = thumbnailPath;
+    }
+
+    // Image management methods
+
+    /**
+     * Add an image path to the journey
+     * @param imagePath The storage path of the image
+     */
+    public void addImagePath(String imagePath) {
+        if (imagePath != null && !imagePath.trim().isEmpty()) {
+            if (this.imagePaths == null) {
+                this.imagePaths = new ArrayList<>();
+            }
+            this.imagePaths.add(imagePath);
+
+            // Set as thumbnail if it's the first image
+            if (this.thumbnailPath == null) {
+                this.thumbnailPath = imagePath;
+            }
+        }
+    }
+
+    /**
+     * Remove an image path from the journey
+     * @param imagePath The storage path to remove
+     * @return true if the path was removed
+     */
+    public boolean removeImagePath(String imagePath) {
+        if (this.imagePaths != null && imagePath != null) {
+            boolean removed = this.imagePaths.remove(imagePath);
+
+            // If removed path was the thumbnail, set a new one
+            if (removed && imagePath.equals(this.thumbnailPath)) {
+                if (!this.imagePaths.isEmpty()) {
+                    this.thumbnailPath = this.imagePaths.get(0);
+                } else {
+                    this.thumbnailPath = null;
+                }
+            }
+            return removed;
+        }
+        return false;
+    }
+
+    /**
+     * Get the number of images
+     * @return Number of images in the journey
+     */
+    public int getImageCount() {
+        return this.imagePaths != null ? this.imagePaths.size() : 0;
+    }
+
+    /**
+     * Check if the journey has images
+     * @return true if the journey has at least one image
+     */
+    public boolean hasImages() {
+        return getImageCount() > 0;
+    }
+
+    /**
+     * Clear all image paths
+     */
+    public void clearImagePaths() {
+        if (this.imagePaths != null) {
+            this.imagePaths.clear();
+        }
+        this.thumbnailPath = null;
+    }
+
+    /**
+     * Generate storage path for a new image
+     * @param imageIndex The index of the image
+     * @param fileExtension The file extension (e.g., "jpg", "png")
+     * @return Storage path for the image
+     */
+    public String generateImagePath(int imageIndex, String fileExtension) {
+        return String.format("journeys/%s/%s/image_%d.%s",
+                this.userUUID, this.id, imageIndex, fileExtension);
+    }
+
+    /**
+     * Generate storage path for thumbnail
+     * @param fileExtension The file extension (e.g., "jpg", "png")
+     * @return Storage path for the thumbnail
+     */
+    public String generateThumbnailPath(String fileExtension) {
+        return String.format("journeys/%s/%s/thumbnail.%s",
+                this.userUUID, this.id, fileExtension);
     }
 
     // Utility methods
@@ -206,7 +319,8 @@ public class Journey {
                 ", start=" + start +
                 ", end=" + end +
                 ", name='" + name + '\'' +
-                ", imageURL='" + imageURL + '\'' +
+                ", imageCount=" + getImageCount() +
+                ", thumbnailPath='" + thumbnailPath + '\'' +
                 '}';
     }
 

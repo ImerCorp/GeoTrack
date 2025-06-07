@@ -3,6 +3,7 @@ package fr.upjv.geotrack.fragments.home;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -14,8 +15,11 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -36,12 +40,14 @@ import java.util.UUID;
 import fr.upjv.geotrack.MainActivity;
 import fr.upjv.geotrack.R;
 import fr.upjv.geotrack.adapters.JourneyAdapter;
+import fr.upjv.geotrack.adapters.ImagePreviewAdapter;
 import fr.upjv.geotrack.controllers.JourneyController;
 import fr.upjv.geotrack.models.Journey;
 
 public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourneyActionListener {
 
     private static final String TAG = "ProfileFragment";
+    private static final int MAX_IMAGES = 10; // Maximum number of images per journey
 
     // Firebase
     private FirebaseAuth mAuth;
@@ -59,10 +65,20 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     private Button addJourneyButton;
     private RecyclerView journeysRecyclerView;
     private LinearLayout emptyStateLayout;
+    private Button saveButton; // Add this as a class member
 
     // Journey Management
     private JourneyAdapter journeyAdapter;
     private List<Journey> journeyList;
+
+    // Image Upload Components
+    private ActivityResultLauncher<Intent> imagePickerLauncher;
+    private List<Uri> selectedImageUris;
+    private ImagePreviewAdapter imagePreviewAdapter;
+    private RecyclerView imagePreviewRecyclerView;
+    private Button selectImagesButton;
+    private TextView selectedImagesCount;
+    private Journey currentEditingJourney; // Track which journey is being edited
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -76,8 +92,12 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         // Initialize controllers
         journeyController = new JourneyController();
 
-        // Initialize journey list
+        // Initialize lists
         journeyList = new ArrayList<>();
+        selectedImageUris = new ArrayList<>();
+
+        // Setup image picker launcher
+        setupImagePickerLauncher();
     }
 
     @Override
@@ -97,6 +117,35 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         loadUserJourneys();
 
         return view;
+    }
+
+    private void setupImagePickerLauncher() {
+        imagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
+                        Intent data = result.getData();
+
+                        selectedImageUris.clear();
+
+                        // Handle multiple image selection
+                        if (data.getClipData() != null) {
+                            // Multiple images selected
+                            int count = Math.min(data.getClipData().getItemCount(), MAX_IMAGES);
+                            for (int i = 0; i < count; i++) {
+                                Uri imageUri = data.getClipData().getItemAt(i).getUri();
+                                selectedImageUris.add(imageUri);
+                            }
+                        } else if (data.getData() != null) {
+                            // Single image selected
+                            selectedImageUris.add(data.getData());
+                        }
+
+                        // Update image preview
+                        updateImagePreview();
+                    }
+                }
+        );
     }
 
     private void initializeViews(View view) {
@@ -173,9 +222,12 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
                                 Date start = document.getDate("start");
                                 Date end = document.getDate("end");
                                 String name = document.getString("name");
-                                String imageURL = document.getString("imageURL");
 
-                                Journey journey = new Journey(id, userUUIDDoc, start, end, name, imageURL);
+                                // Handle image paths
+                                List<String> imagePaths = (List<String>) document.get("imagePaths");
+                                String thumbnailPath = document.getString("thumbnailPath");
+
+                                Journey journey = new Journey(id, userUUIDDoc, start, end, name, imagePaths, thumbnailPath);
                                 journeyList.add(journey);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error parsing journey document", e);
@@ -211,8 +263,22 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         TextInputEditText startDateInput = dialogView.findViewById(R.id.start_date_input);
         TextInputEditText endDateInput = dialogView.findViewById(R.id.end_date_input);
 
+        // Image selection components
+        selectImagesButton = dialogView.findViewById(R.id.select_images_button);
+        selectedImagesCount = dialogView.findViewById(R.id.selected_images_count);
+        imagePreviewRecyclerView = dialogView.findViewById(R.id.image_preview_recycler);
+
+        // Initialize the saveButton and cancelButton here
+        Button cancelButton = dialogView.findViewById(R.id.cancel_button);
+        saveButton = dialogView.findViewById(R.id.save_button); // Now it's accessible class-wide
+
+        // Setup image preview RecyclerView
+        setupImagePreviewRecyclerView();
+
         // Setup for edit mode
         boolean isEditMode = existingJourney != null;
+        currentEditingJourney = existingJourney;
+
         if (isEditMode) {
             dialogTitle.setText("Edit Journey");
             nameInput.setText(existingJourney.getName());
@@ -220,6 +286,12 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
             SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
             startDateInput.setText(dateFormat.format(existingJourney.getStart()));
             endDateInput.setText(dateFormat.format(existingJourney.getEnd()));
+
+            // Load existing images if any
+            loadExistingImages(existingJourney);
+        } else {
+            selectedImageUris.clear();
+            updateImagePreview();
         }
 
         // Date picker setup
@@ -231,6 +303,72 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
             endCalendar.setTime(existingJourney.getEnd());
         }
 
+        // Setup date pickers
+        setupDatePickers(startDateInput, endDateInput, startCalendar, endCalendar);
+
+        // Setup image selection button
+        selectImagesButton.setOnClickListener(v -> openImagePicker());
+
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setView(dialogView)
+                .create();
+
+        cancelButton.setOnClickListener(v -> {
+            selectedImageUris.clear();
+            dialog.dismiss();
+        });
+
+        saveButton.setOnClickListener(v -> {
+            String name = nameInput.getText().toString().trim();
+
+            if (name.isEmpty()) {
+                Toast.makeText(getContext(), "Please enter a journey name", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (startCalendar.after(endCalendar)) {
+                Toast.makeText(getContext(), "Start date must be before end date", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Create or update journey
+            String journeyId = isEditMode ? existingJourney.getId() : UUID.randomUUID().toString();
+            Journey journey = new Journey(
+                    journeyId,
+                    currentUser.getUid(),
+                    startCalendar.getTime(),
+                    endCalendar.getTime(),
+                    name
+            );
+
+            // If editing, preserve existing image paths
+            if (isEditMode && existingJourney.getImagePaths() != null) {
+                journey.setImagePaths(new ArrayList<>(existingJourney.getImagePaths()));
+                journey.setThumbnailPath(existingJourney.getThumbnailPath());
+            }
+
+            if (isEditMode) {
+                updateJourneyWithImages(journey, dialog);
+            } else {
+                createJourneyWithImages(journey, dialog);
+            }
+        });
+
+        dialog.show();
+    }
+
+    private void setupImagePreviewRecyclerView() {
+        imagePreviewAdapter = new ImagePreviewAdapter(selectedImageUris, uri -> {
+            selectedImageUris.remove(uri);
+            updateImagePreview();
+        });
+
+        imagePreviewRecyclerView.setLayoutManager(new GridLayoutManager(getContext(), 3));
+        imagePreviewRecyclerView.setAdapter(imagePreviewAdapter);
+    }
+
+    private void setupDatePickers(TextInputEditText startDateInput, TextInputEditText endDateInput,
+                                  Calendar startCalendar, Calendar endCalendar) {
         startDateInput.setOnClickListener(v -> {
             DatePickerDialog datePickerDialog = new DatePickerDialog(
                     getContext(),
@@ -260,50 +398,72 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
             );
             datePickerDialog.show();
         });
+    }
 
-        AlertDialog dialog = new AlertDialog.Builder(getContext())
-                .setView(dialogView)
-                .create();
+    private void openImagePicker() {
+        Intent intent = new Intent();
+        intent.setType("image/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        imagePickerLauncher.launch(Intent.createChooser(intent, "Select Images"));
+    }
 
-        Button cancelButton = dialogView.findViewById(R.id.cancel_button);
-        Button saveButton = dialogView.findViewById(R.id.save_button);
+    private void updateImagePreview() {
+        if (imagePreviewAdapter != null) {
+            imagePreviewAdapter.notifyDataSetChanged();
+        }
 
-        cancelButton.setOnClickListener(v -> dialog.dismiss());
+        if (selectedImagesCount != null) {
+            selectedImagesCount.setText(selectedImageUris.size() + " images selected");
+            selectedImagesCount.setVisibility(selectedImageUris.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+    }
 
-        saveButton.setOnClickListener(v -> {
-            String name = nameInput.getText().toString().trim();
+    private void loadExistingImages(Journey journey) {
+        // For existing journeys, we'll show a count but not load the actual images in the dialog
+        // This is to avoid downloading images unnecessarily
+        selectedImagesCount.setText(journey.getImageCount() + " existing images");
+        selectedImagesCount.setVisibility(journey.hasImages() ? View.VISIBLE : View.GONE);
+    }
 
-            if (name.isEmpty()) {
-                Toast.makeText(getContext(), "Please enter a journey name", Toast.LENGTH_SHORT).show();
-                return;
-            }
+    private void createJourneyWithImages(Journey journey, AlertDialog dialog) {
+        // Now saveButton is accessible
+        saveButton.setEnabled(false);
+        saveButton.setText("Saving...");
 
-            if (startCalendar.after(endCalendar)) {
-                Toast.makeText(getContext(), "Start date must be before end date", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        if (selectedImageUris.isEmpty()) {
+            createJourney(journey, dialog);
+        } else {
+            journeyController.uploadJourneyImages(journey, selectedImageUris)
+                    .addOnSuccessListener(updatedJourney -> {
+                        createJourney(updatedJourney, dialog);
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error uploading images", e);
+                        Toast.makeText(getContext(), "Failed to upload images", Toast.LENGTH_SHORT).show();
+                        resetSaveButton(); // Helper method
+                    });
+        }
+    }
 
-            // Continuation from where the code was cut off...
+    private void updateJourneyWithImages(Journey journey, AlertDialog dialog) {
+        // Now saveButton is accessible
+        saveButton.setEnabled(false);
+        saveButton.setText("Updating...");
 
-            // Create or update journey
-            String journeyId = isEditMode ? existingJourney.getId() : UUID.randomUUID().toString();
-            Journey journey = new Journey(
-                    journeyId,
-                    currentUser.getUid(),
-                    startCalendar.getTime(),
-                    endCalendar.getTime(),
-                    name,
-                    null // imageURL - can be set later
-            );
-
-            if (isEditMode) {
-                updateJourney(journey, dialog);
-            } else {
-                createJourney(journey, dialog);
-            }
-        });
-
-        dialog.show();
+        if (selectedImageUris.isEmpty()) {
+            updateJourney(journey, dialog);
+        } else {
+            journeyController.uploadJourneyImages(journey, selectedImageUris)
+                    .addOnSuccessListener(updatedJourney -> {
+                        updateJourney(updatedJourney, dialog);
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error uploading images", e);
+                        Toast.makeText(getContext(), "Failed to upload images", Toast.LENGTH_SHORT).show();
+                        resetSaveButton(); // Helper method
+                    });
+        }
     }
 
     private void createJourney(Journey journey, AlertDialog dialog) {
@@ -311,12 +471,14 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
                 .addOnSuccessListener(documentReference -> {
                     Log.d(TAG, "Journey created successfully");
                     Toast.makeText(getContext(), "Journey created successfully", Toast.LENGTH_SHORT).show();
-                    loadUserJourneys(); // Refresh the list
+                    selectedImageUris.clear();
+                    loadUserJourneys();
                     dialog.dismiss();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error creating journey", e);
                     Toast.makeText(getContext(), "Failed to create journey", Toast.LENGTH_SHORT).show();
+                    resetSaveButton(); // Helper method
                 });
     }
 
@@ -325,23 +487,34 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Journey updated successfully");
                     Toast.makeText(getContext(), "Journey updated successfully", Toast.LENGTH_SHORT).show();
-                    loadUserJourneys(); // Refresh the list
+                    selectedImageUris.clear();
+                    loadUserJourneys();
                     dialog.dismiss();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error updating journey", e);
                     Toast.makeText(getContext(), "Failed to update journey", Toast.LENGTH_SHORT).show();
+                    resetSaveButton(); // Helper method
                 });
+    }
+
+    // Helper method to reset save button state
+    private void resetSaveButton() {
+        if (saveButton != null) {
+            saveButton.setEnabled(true);
+            saveButton.setText("Save");
+        }
     }
 
     private void deleteJourney(Journey journey) {
         new AlertDialog.Builder(getContext())
                 .setTitle("Delete Journey")
-                .setMessage("Are you sure you want to delete \"" + journey.getName() + "\"? This action cannot be undone.")
+                .setMessage("Are you sure you want to delete \"" + journey.getName() + "\"? This will also delete all associated images and cannot be undone.")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    journeyController.deleteJourney(journey.getId())
+                    // Use the method that deletes both Firestore document and images
+                    journeyController.deleteJourneyWithImages(journey)
                             .addOnSuccessListener(aVoid -> {
-                                Log.d(TAG, "Journey deleted successfully");
+                                Log.d(TAG, "Journey and images deleted successfully");
                                 Toast.makeText(getContext(), "Journey deleted successfully", Toast.LENGTH_SHORT).show();
                                 loadUserJourneys(); // Refresh the list
                             })
