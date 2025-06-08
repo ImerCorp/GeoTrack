@@ -45,6 +45,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 import fr.upjv.geotrack.MainActivity;
+import fr.upjv.geotrack.JourneyDetailActivity;
 import fr.upjv.geotrack.R;
 import fr.upjv.geotrack.adapters.JourneyAdapter;
 import fr.upjv.geotrack.adapters.ImagePreviewAdapter;
@@ -893,6 +894,8 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     public void onJourneyClick(Journey journey) {
         Log.d(TAG, "Journey clicked: " + journey.getName());
         // TODO: Implement navigation to journey details
+        // Navigate to JourneyDetailActivity
+        JourneyDetailActivity.startActivity(getContext(), journey);
     }
 
     @Override

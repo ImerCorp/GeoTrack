@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.upjv.geotrack">
-    
+
     <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    
+
     <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    
+
     <!-- Background location permission for Android 10+ -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    
+
     <!-- Foreground service permissions for Android 9+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    
+
     <!-- Auto-start permission -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -27,12 +27,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoTrack">
-        
+
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBY-AbPmIeAtEicye_hBOHXiLTN2qHVyvg" />
-        
+
         <!-- Activities -->
         <activity
             android:name=".HomeActivity"
@@ -48,7 +48,13 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
-            
+
+        <!-- Journey Activities -->
+        <activity
+            android:name=".JourneyDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <!-- Location Service -->
         <service
             android:name=".services.LocationService"
@@ -56,7 +62,7 @@
             android:exported="false"
             android:foregroundServiceType="location"
             android:permission="android.permission.BIND_JOB_SERVICE" />
-            
+
         <!-- Restart Receiver -->
         <receiver
             android:name=".services.LocationServiceRestarter"
@@ -69,6 +75,6 @@
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
-        
+
     </application>
 </manifest>
