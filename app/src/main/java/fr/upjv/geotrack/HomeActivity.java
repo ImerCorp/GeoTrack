@@ -87,7 +87,7 @@ public class HomeActivity extends AppCompatActivity {
 
         // 3) Vérifier si l'utilisateur est bien connecté
         this.currentUser = mAuth.getCurrentUser();
-        new UserController("HomeActivity")
+        new UserController("HomeActivity", getApplicationContext())
                 .saveUser(new User(
                         currentUser.getUid(),
                         currentUser.getEmail(),
