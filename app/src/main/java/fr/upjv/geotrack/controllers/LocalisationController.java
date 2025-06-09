@@ -1,16 +1,7 @@
 package fr.upjv.geotrack.controllers;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
 import android.util.Log;
-
-import androidx.core.app.ActivityCompat;
-
 import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.util.Date;
-import java.util.UUID;
-
 import fr.upjv.geotrack.models.Localisation;
 
 public class LocalisationController {
