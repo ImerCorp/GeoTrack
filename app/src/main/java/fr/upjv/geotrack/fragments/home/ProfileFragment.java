@@ -54,6 +54,21 @@ import fr.upjv.geotrack.adapters.JourneyAdapter;
 import fr.upjv.geotrack.adapters.ImagePreviewAdapter;
 import fr.upjv.geotrack.controllers.JourneyController;
 import fr.upjv.geotrack.models.Journey;
+import fr.upjv.geotrack.models.User;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.provider.MediaStore;
+import android.widget.ProgressBar;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.bumptech.glide.request.RequestOptions;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourneyActionListener {
 
@@ -101,6 +116,12 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     private Journey currentEditingJourney;
     private Button saveButton;
 
+    private ProgressBar profileImageLoading;
+    private ImageView cameraOverlay;
+    private ActivityResultLauncher<Intent> profileImagePickerLauncher;
+    private FirebaseStorage storage;
+    private StorageReference storageRef;
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,28 +141,23 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
 
         // Setup image picker launcher
         setupImagePickerLauncher();
+
+        initializeFirebase();
+        setupImagePickerLauncher();
+        setupProfileImagePickerLauncher(); // Add this line
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        // Use the basic layout first, you can switch to fragment_profile_enhanced if you have it
         View view = inflater.inflate(R.layout.fragment_profile, container, false);
 
-        // Initialize UI components
         initializeViews(view);
-
         setupBackButton();
-
-        // Load user profile data
+        setupProfileImageClick(); // Add this line
         loadUserProfile();
-
-        // Setup journey management
+        loadUserProfileImage();
         setupJourneyManagement();
-
-        // Setup search and filters (if available in layout)
         setupSearchAndFilters();
-
-        // Load user journeys
         loadUserJourneys();
 
         return view;
@@ -190,6 +206,21 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         addJourneyButton = view.findViewById(R.id.add_journey_button);
         journeysRecyclerView = view.findViewById(R.id.journeys_recycler_view);
         emptyStateLayout = view.findViewById(R.id.empty_state_layout);
+
+        backButton = view.findViewById(R.id.back_button);
+        profileImage = view.findViewById(R.id.profile_image);
+        profileImageLoading = view.findViewById(R.id.profile_image_loading); // Add this line
+        cameraOverlay = view.findViewById(R.id.camera_overlay); // Add this line
+        displayName = view.findViewById(R.id.display_name);
+        emailAddress = view.findViewById(R.id.email_address);
+        memberSince = view.findViewById(R.id.member_since);
+        journeyCount = view.findViewById(R.id.journey_count);
+        swipeRefreshLayout = view.findViewById(R.id.swipe_refresh_layout);
+        searchView = view.findViewById(R.id.search_view);
+        filterChipGroup = view.findViewById(R.id.filter_chip_group);
+        addJourneyButton = view.findViewById(R.id.add_journey_button);
+        journeysRecyclerView = view.findViewById(R.id.journeys_recycler_view);
+        emptyStateLayout = view.findViewById(R.id.empty_state_layout);
     }
 
     private void loadUserProfile() {
@@ -199,6 +230,168 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         } else {
             redirectToLogin();
         }
+    }
+
+    private void setupProfileImagePickerLauncher() {
+        profileImagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
+                        handleProfileImageResult(result.getData());
+                    }
+                }
+        );
+    }
+
+    private void setupProfileImageClick() {
+        View.OnClickListener profileImageClickListener = v -> openProfileImagePicker();
+
+        if (profileImage != null) {
+            profileImage.setOnClickListener(profileImageClickListener);
+        }
+
+        if (cameraOverlay != null) {
+            cameraOverlay.setOnClickListener(profileImageClickListener);
+        }
+    }
+
+    private void openProfileImagePicker() {
+        Intent intent = new Intent();
+        intent.setType("image/*");
+        intent.setAction(Intent.ACTION_GET_CONTENT);
+        profileImagePickerLauncher.launch(Intent.createChooser(intent, "Select Profile Picture"));
+    }
+
+    private void handleProfileImageResult(Intent data) {
+        Uri imageUri = data.getData();
+        if (imageUri != null) {
+            uploadProfileImage(imageUri);
+        }
+    }
+
+    private void uploadProfileImage(Uri imageUri) {
+        if (currentUser == null) {
+            Toast.makeText(getContext(), "User not authenticated", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        showProfileImageLoading(true);
+
+        try {
+            // Compress and resize the image
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), imageUri);
+            Bitmap resizedBitmap = resizeBitmap(bitmap, 400, 400);
+
+            // Convert to byte array
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+            byte[] imageData = baos.toByteArray();
+
+            // Create storage reference
+            String imagePath = "users/" + currentUser.getUid() + "/profile.jpg";
+            StorageReference imageRef = storageRef.child(imagePath);
+
+            // Upload image
+            UploadTask uploadTask = imageRef.putBytes(imageData);
+            uploadTask.addOnSuccessListener(taskSnapshot -> {
+                // Get download URL
+                imageRef.getDownloadUrl().addOnSuccessListener(downloadUri -> {
+                    updateUserProfilePicture(imagePath, downloadUri.toString());
+                }).addOnFailureListener(e -> {
+                    Log.e(TAG, "Error getting download URL", e);
+                    Toast.makeText(getContext(), "Failed to get image URL", Toast.LENGTH_SHORT).show();
+                    showProfileImageLoading(false);
+                });
+            }).addOnFailureListener(e -> {
+                Log.e(TAG, "Error uploading profile image", e);
+                Toast.makeText(getContext(), "Failed to upload image", Toast.LENGTH_SHORT).show();
+                showProfileImageLoading(false);
+            });
+
+        } catch (IOException e) {
+            Log.e(TAG, "Error processing image", e);
+            Toast.makeText(getContext(), "Error processing image", Toast.LENGTH_SHORT).show();
+            showProfileImageLoading(false);
+        }
+    }
+
+    private Bitmap resizeBitmap(Bitmap bitmap, int maxWidth, int maxHeight) {
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+
+        if (width <= maxWidth && height <= maxHeight) {
+            return bitmap;
+        }
+
+        float aspectRatio = (float) width / height;
+
+        if (width > height) {
+            width = maxWidth;
+            height = Math.round(width / aspectRatio);
+        } else {
+            height = maxHeight;
+            width = Math.round(height * aspectRatio);
+        }
+
+        return Bitmap.createScaledBitmap(bitmap, width, height, true);
+    }
+
+    private void updateUserProfilePicture(String imagePath, String imageUrl) {
+        if (currentUser == null) return;
+
+        // Update user document in Firestore
+        db.collection("users").document(currentUser.getUid())
+                .update("profilePicturePath", imagePath, "profilePictureUrl", imageUrl)
+                .addOnSuccessListener(aVoid -> {
+                    // Load the new image
+                    loadProfileImage(imageUrl);
+                    Toast.makeText(getContext(), "Profile picture updated", Toast.LENGTH_SHORT).show();
+                    showProfileImageLoading(false);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error updating user profile", e);
+                    Toast.makeText(getContext(), "Failed to update profile", Toast.LENGTH_SHORT).show();
+                    showProfileImageLoading(false);
+                });
+    }
+
+    private void loadProfileImage(String imageUrl) {
+        if (getContext() == null || profileImage == null) return;
+
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            RequestOptions requestOptions = new RequestOptions()
+                    .transform(new CircleCrop())
+                    .placeholder(R.drawable.ic_profile_logo)
+                    .error(R.drawable.ic_profile_logo);
+
+            Glide.with(getContext())
+                    .load(imageUrl)
+                    .apply(requestOptions)
+                    .into(profileImage);
+        } else {
+            profileImage.setImageResource(R.drawable.ic_profile_logo);
+        }
+    }
+
+    private void showProfileImageLoading(boolean show) {
+        if (profileImageLoading != null) {
+            profileImageLoading.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+        if (cameraOverlay != null) {
+            cameraOverlay.setVisibility(show ? View.GONE : View.VISIBLE);
+        }
+        if (profileImage != null) {
+            profileImage.setEnabled(!show);
+        }
+    }
+
+    private void initializeFirebase() {
+        mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
+        storage = FirebaseStorage.getInstance();
+        storageRef = storage.getReference();
+        currentUser = mAuth.getCurrentUser();
+        journeyController = new JourneyController();
     }
 
     private void setupBackButton() {
@@ -233,28 +426,51 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     }
 
     private void loadBasicUserInfo() {
-        // Display name
-        String name = currentUser.getDisplayName();
-        if (name != null && !name.isEmpty()) {
-            displayName.setText(name);
-        } else {
-            displayName.setText("User");
+        displayName.setText(currentUser.getDisplayName() != null && !currentUser.getDisplayName().isEmpty()
+                ? currentUser.getDisplayName() : "User");
+
+        if (currentUser.getEmail() != null) {
+            emailAddress.setText(currentUser.getEmail());
         }
 
-        // Email address
-        String email = currentUser.getEmail();
-        if (email != null) {
-            emailAddress.setText(email);
-        }
+        // Load profile image from Firestore user document
+        loadUserProfileImage();
 
-        // Set default profile image
-        profileImage.setImageResource(R.drawable.ic_profile_logo);
-
-        // Member since
-        long creationTimestamp = currentUser.getMetadata().getCreationTimestamp();
-        Date creationDate = new Date(creationTimestamp);
+        Date creationDate = new Date(currentUser.getMetadata().getCreationTimestamp());
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
         memberSince.setText("Member since " + dateFormat.format(creationDate));
+    }
+
+    private void loadUserProfileImage() {
+        if (currentUser == null) return;
+
+        db.collection("users").document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String profilePictureUrl = documentSnapshot.getString("profilePictureUrl");
+                        loadProfileImage(profilePictureUrl);
+                    } else {
+                        // Create user document if it doesn't exist
+                        createUserDocument();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading user profile image", e);
+                    profileImage.setImageResource(R.drawable.ic_profile_logo);
+                });
+    }
+
+    private void createUserDocument() {
+        if (currentUser == null) return;
+
+        User user = new User(currentUser.getUid(), currentUser.getEmail(),
+                currentUser.getDisplayName() != null ? currentUser.getDisplayName() : "User");
+
+        db.collection("users").document(currentUser.getUid())
+                .set(user.toJson())
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "User document created"))
+                .addOnFailureListener(e -> Log.e(TAG, "Error creating user document", e));
     }
 
     private void loadUserStats() {

@@ -73,15 +73,16 @@
             android:padding="8dp"
             app:tint="@color/white" />
 
-        <ImageView
+        <!-- Profile Icon - now will show user's image -->
+        <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/profile_icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@drawable/ic_profile_modern"
             android:contentDescription="Profile"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="8dp"
-            app:tint="@color/white" />
+            app:civ_border_width="2dp"
+            app:civ_border_color="@color/white" />
 
     </LinearLayout>
 
