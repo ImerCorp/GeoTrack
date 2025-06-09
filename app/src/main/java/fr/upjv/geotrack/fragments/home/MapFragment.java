@@ -1,66 +1,102 @@
 package fr.upjv.geotrack.fragments.home;
 
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.Toast;
 
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import fr.upjv.geotrack.R;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link MapFragment#newInstance} factory method to
- * create an instance of this fragment.
- */
 public class MapFragment extends Fragment {
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
-
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
-
-    public MapFragment() {
-        // Required empty public constructor
-    }
-
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment MapFragment.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static MapFragment newInstance(String param1, String param2) {
-        MapFragment fragment = new MapFragment();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
-    }
+    private ImageView hamburgerMenu;
+    private ImageView appLogo;
+    private ImageView searchIcon;
+    private ImageView profileIcon;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_map, container, false);
+
+        // Initialize header components
+        initializeHeader(view);
+
+        return view;
+    }
+
+    private void initializeHeader(View view) {
+        // Find header views
+        hamburgerMenu = view.findViewById(R.id.hamburger_menu);
+        appLogo = view.findViewById(R.id.app_logo);
+        searchIcon = view.findViewById(R.id.search_icon);
+        profileIcon = view.findViewById(R.id.profile_icon);
+
+        // Set click listeners
+        setupHeaderClickListeners();
+    }
+
+    private void setupHeaderClickListeners() {
+        // Hamburger menu click
+        if (hamburgerMenu != null) {
+            hamburgerMenu.setOnClickListener(v -> {
+                // TODO: Open navigation drawer or side menu
+                Toast.makeText(getContext(), "Menu clicked", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // App logo click
+        if (appLogo != null) {
+            appLogo.setOnClickListener(v -> {
+                // TODO: Navigate to home or refresh
+                Toast.makeText(getContext(), "Logo clicked", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Search icon click
+        if (searchIcon != null) {
+            searchIcon.setOnClickListener(v -> {
+                // TODO: Open search functionality
+                Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Profile icon click - Navigate to ProfileFragment
+        if (profileIcon != null) {
+            profileIcon.setOnClickListener(v -> {
+                navigateToProfileFragment();
+            });
         }
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_map, container, false);
+    private void navigateToProfileFragment() {
+        try {
+            FragmentManager fragmentManager = getParentFragmentManager();
+            FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+            // Create new ProfileFragment instance
+            ProfileFragment profileFragment = new ProfileFragment();
+
+            // Replace current fragment with ProfileFragment
+            transaction.replace(R.id.fragment_container, profileFragment);
+
+            // Add to back stack so user can navigate back
+            transaction.addToBackStack("MapFragment");
+
+            // Add transition animation
+            transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+
+            // Commit the transaction
+            transaction.commit();
+
+        } catch (Exception e) {
+            // Fallback: Show toast if navigation fails
+            Toast.makeText(getContext(), "Opening Profile", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
     }
 }
