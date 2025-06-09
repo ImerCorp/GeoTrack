@@ -10,6 +10,16 @@ import android.widget.Toast;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.MultiTransformation;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+
 import fr.upjv.geotrack.R;
 
 public class ThreadFragment extends Fragment {
@@ -19,14 +29,30 @@ public class ThreadFragment extends Fragment {
     private ImageView searchIcon;
     private ImageView profileIcon;
 
+    private FirebaseAuth mAuth;
+    private FirebaseStorage storage;
+    private StorageReference storageRef;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_thread, container, false);
 
+        // Initialize Firebase
+        initializeFirebase();
+
         // Initialize header components
         initializeHeader(view);
 
+        // Load user profile image
+        loadUserProfileImage();
+
         return view;
+    }
+
+    private void initializeFirebase() {
+        mAuth = FirebaseAuth.getInstance();
+        storage = FirebaseStorage.getInstance();
+        storageRef = storage.getReference();
     }
 
     private void initializeHeader(View view) {
@@ -40,11 +66,47 @@ public class ThreadFragment extends Fragment {
         setupHeaderClickListeners();
     }
 
+    private void loadUserProfileImage() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+
+        if (currentUser != null && profileIcon != null) {
+            String userId = currentUser.getUid();
+            StorageReference profileImageRef = storageRef.child("users/" + userId + "/profile.jpg");
+
+            profileImageRef.getDownloadUrl()
+                    .addOnSuccessListener(uri -> {
+                        if (getContext() != null && isAdded()) {
+                            Glide.with(this)
+                                    .load(uri)
+                                    .transform(
+                                            new MultiTransformation<>(
+                                                    new CenterCrop(),
+                                                    new CircleCrop()
+                                            )
+                                    )
+                                    .placeholder(R.drawable.ic_profile_modern)
+                                    .error(R.drawable.ic_profile_modern)
+                                    .into(profileIcon);
+                        }
+                    })
+                    .addOnFailureListener(exception -> {
+                        if (getContext() != null && isAdded()) {
+                            Glide.with(this)
+                                    .load(R.drawable.ic_profile_modern)
+                                    .into(profileIcon);
+                        }
+                    });
+        } else {
+            if (profileIcon != null) {
+                profileIcon.setImageResource(R.drawable.ic_profile_modern);
+            }
+        }
+    }
+
     private void setupHeaderClickListeners() {
         // Hamburger menu click
         if (hamburgerMenu != null) {
             hamburgerMenu.setOnClickListener(v -> {
-                // TODO: Open navigation drawer or side menu
                 Toast.makeText(getContext(), "Menu clicked", Toast.LENGTH_SHORT).show();
             });
         }
@@ -52,7 +114,6 @@ public class ThreadFragment extends Fragment {
         // App logo click
         if (appLogo != null) {
             appLogo.setOnClickListener(v -> {
-                // TODO: Navigate to home or refresh
                 Toast.makeText(getContext(), "Logo clicked", Toast.LENGTH_SHORT).show();
             });
         }
@@ -60,7 +121,6 @@ public class ThreadFragment extends Fragment {
         // Search icon click
         if (searchIcon != null) {
             searchIcon.setOnClickListener(v -> {
-                // TODO: Open search functionality
                 Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show();
             });
         }
@@ -78,27 +138,20 @@ public class ThreadFragment extends Fragment {
             FragmentManager fragmentManager = getParentFragmentManager();
             FragmentTransaction transaction = fragmentManager.beginTransaction();
 
-            // Create new ProfileFragment instance
             ProfileFragment profileFragment = new ProfileFragment();
-
-            // Replace current fragment with ProfileFragment
-            // Assuming your main container ID is something like R.id.fragment_container
-            // You may need to adjust this based on your MainActivity's layout
             transaction.replace(R.id.fragment_container, profileFragment);
-
-            // Add to back stack so user can navigate back
             transaction.addToBackStack("ThreadFragment");
-
-            // Add transition animation (optional)
             transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
-
-            // Commit the transaction
             transaction.commit();
 
         } catch (Exception e) {
-            // Fallback: Show toast if navigation fails
             Toast.makeText(getContext(), "Opening Profile", Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
+    }
+
+    // Method to refresh profile image (call this when user updates their profile)
+    public void refreshProfileImage() {
+        loadUserProfileImage();
     }
 }

@@ -10,6 +10,16 @@ import android.widget.Toast;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.MultiTransformation;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+
 import fr.upjv.geotrack.R;
 
 public class MapFragment extends Fragment {
@@ -19,14 +29,30 @@ public class MapFragment extends Fragment {
     private ImageView searchIcon;
     private ImageView profileIcon;
 
+    private FirebaseAuth mAuth;
+    private FirebaseStorage storage;
+    private StorageReference storageRef;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
 
+        // Initialize Firebase
+        initializeFirebase();
+
         // Initialize header components
         initializeHeader(view);
 
+        // Load user profile image
+        loadUserProfileImage();
+
         return view;
+    }
+
+    private void initializeFirebase() {
+        mAuth = FirebaseAuth.getInstance();
+        storage = FirebaseStorage.getInstance();
+        storageRef = storage.getReference();
     }
 
     private void initializeHeader(View view) {
@@ -39,6 +65,44 @@ public class MapFragment extends Fragment {
         // Set click listeners
         setupHeaderClickListeners();
     }
+
+    private void loadUserProfileImage() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+
+        if (currentUser != null && profileIcon != null) {
+            String userId = currentUser.getUid();
+            StorageReference profileImageRef = storageRef.child("users/" + userId + "/profile.jpg");
+
+            profileImageRef.getDownloadUrl()
+                    .addOnSuccessListener(uri -> {
+                        if (getContext() != null && isAdded()) {
+                            Glide.with(this)
+                                    .load(uri)
+                                    .transform(
+                                            new MultiTransformation<>(
+                                                    new CenterCrop(),
+                                                    new CircleCrop()
+                                            )
+                                    )
+                                    .placeholder(R.drawable.ic_profile_modern)
+                                    .error(R.drawable.ic_profile_modern)
+                                    .into(profileIcon);
+                        }
+                    })
+                    .addOnFailureListener(exception -> {
+                        if (getContext() != null && isAdded()) {
+                            Glide.with(this)
+                                    .load(R.drawable.ic_profile_modern)
+                                    .into(profileIcon);
+                        }
+                    });
+        } else {
+            if (profileIcon != null) {
+                profileIcon.setImageResource(R.drawable.ic_profile_modern);
+            }
+        }
+    }
+
 
     private void setupHeaderClickListeners() {
         // Hamburger menu click
@@ -78,25 +142,20 @@ public class MapFragment extends Fragment {
             FragmentManager fragmentManager = getParentFragmentManager();
             FragmentTransaction transaction = fragmentManager.beginTransaction();
 
-            // Create new ProfileFragment instance
             ProfileFragment profileFragment = new ProfileFragment();
-
-            // Replace current fragment with ProfileFragment
             transaction.replace(R.id.fragment_container, profileFragment);
-
-            // Add to back stack so user can navigate back
             transaction.addToBackStack("MapFragment");
-
-            // Add transition animation
             transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
-
-            // Commit the transaction
             transaction.commit();
 
         } catch (Exception e) {
-            // Fallback: Show toast if navigation fails
             Toast.makeText(getContext(), "Opening Profile", Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
+    }
+
+    // Method to refresh profile image (call this when user updates their profile)
+    public void refreshProfileImage() {
+        loadUserProfileImage();
     }
 }

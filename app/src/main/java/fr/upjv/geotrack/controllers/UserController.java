@@ -60,6 +60,32 @@ public class UserController {
                 });
     }
 
+    public void saveUserFirstTime(User user) {
+        DBFireStore.collection(collectionName)
+                .document(user.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists()) {
+                        // User doesn't exist, save them
+                        DBFireStore.collection(collectionName)
+                                .document(user.getUid())
+                                .set(user.toJson())
+                                .addOnSuccessListener(success -> {
+                                    Log.d(TAG, "User saved successfully");
+                                })
+                                .addOnFailureListener(fail -> {
+                                    Log.e(TAG, "Error saving user: " + fail.getMessage());
+                                });
+                    } else {
+                        Log.d(TAG, "User already exists, skipping save");
+                    }
+                })
+                .addOnFailureListener(fail -> {
+                    Log.e(TAG, "Error checking user existence: " + fail.getMessage());
+                });
+    }
+
+
     /**
      * Get user by UID
      */

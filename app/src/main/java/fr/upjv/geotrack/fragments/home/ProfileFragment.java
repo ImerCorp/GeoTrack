@@ -155,6 +155,7 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         setupBackButton();
         setupProfileImageClick(); // Add this line
         loadUserProfile();
+        loadUserProfileImage();
         setupJourneyManagement();
         setupSearchAndFilters();
         loadUserJourneys();
