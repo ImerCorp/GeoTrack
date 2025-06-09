@@ -54,6 +54,10 @@
             android:name=".JourneyDetailActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".CreateJourneyActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
 
         <!-- Location Service -->
         <service

@@ -24,8 +24,8 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:background="#1A1A1B"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
         android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -63,9 +63,31 @@
 
         </LinearLayout>
 
-        <!-- Profile Tab -->
+        <!-- Create Journey Button (Center) -->
+        <RelativeLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center">
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_create_journey"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_centerInParent="true"
+                android:src="@drawable/ic_add"
+                android:contentDescription="Create Journey"
+                app:tint="@android:color/white"
+                app:backgroundTint="#FF6B35"
+                app:elevation="6dp"
+                app:rippleColor="#FFFFFF"
+                app:fabSize="normal" />
+
+        </RelativeLayout>
+
+        <!-- Map Tab -->
         <LinearLayout
-            android:id="@+id/tab_profile"
+            android:id="@+id/tab_map"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -77,18 +99,18 @@
             android:background="?attr/selectableItemBackground">
 
             <ImageView
-                android:id="@+id/btn_profile"
+                android:id="@+id/btn_map"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_profile_logo"
+                android:src="@drawable/ic_map"
                 android:scaleType="centerInside"
                 android:layout_marginBottom="4dp" />
 
             <TextView
-                android:id="@+id/text_profile"
+                android:id="@+id/text_map"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Profile"
+                android:text="Map"
                 android:textSize="12sp"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center" />

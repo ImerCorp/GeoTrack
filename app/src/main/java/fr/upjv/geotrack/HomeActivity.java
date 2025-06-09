@@ -26,17 +26,19 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import android.view.View;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import fr.upjv.geotrack.CreateJourneyActivity;
 import fr.upjv.geotrack.controllers.UserController;
 import fr.upjv.geotrack.models.User;
 import fr.upjv.geotrack.services.LocationService;
 import fr.upjv.geotrack.fragments.home.ThreadFragment;
 import fr.upjv.geotrack.fragments.home.ProfileFragment;
-
+import fr.upjv.geotrack.fragments.home.MapFragment;
 
 public class HomeActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST = 1000;
@@ -55,9 +57,10 @@ public class HomeActivity extends AppCompatActivity {
     private FusedLocationProviderClient fusedClient;
 
     // UI Components - Updated for new navigation structure
-    private LinearLayout tabThread, tabProfile;
-    private ImageView btnThread, btnProfile;
-    private TextView textThread, textProfile;
+    private LinearLayout tabThread, tabMap;
+    private ImageView btnThread, btnMap;
+    private TextView textThread, textMap;
+    private FloatingActionButton fabCreateJourney;
     private FragmentManager fragmentManager;
     private boolean isThreadSelected = true;
 
@@ -120,13 +123,16 @@ public class HomeActivity extends AppCompatActivity {
     private void setupBottomNavigation() {
         // Initialize tab containers
         tabThread = findViewById(R.id.tab_thread);
-        tabProfile = findViewById(R.id.tab_profile);
+        tabMap = findViewById(R.id.tab_map);
 
         // Initialize icons and text
         btnThread = findViewById(R.id.btn_thread);
-        btnProfile = findViewById(R.id.btn_profile);
+        btnMap = findViewById(R.id.btn_map);
         textThread = findViewById(R.id.text_thread);
-        textProfile = findViewById(R.id.text_profile);
+        textMap = findViewById(R.id.text_map);
+
+        // Initialize FAB
+        fabCreateJourney = findViewById(R.id.fab_create_journey);
 
         // Set initial state
         updateTabStates(true);
@@ -138,10 +144,15 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-        tabProfile.setOnClickListener(v -> {
+        tabMap.setOnClickListener(v -> {
             if (isThreadSelected) {
-                switchToProfile();
+                switchToMap();
             }
+        });
+
+        // Set click listener for Create Journey FAB
+        fabCreateJourney.setOnClickListener(v -> {
+            openCreateJourneyActivity();
         });
     }
 
@@ -151,9 +162,9 @@ public class HomeActivity extends AppCompatActivity {
         updateTabStates(true);
     }
 
-    private void switchToProfile() {
+    private void switchToMap() {
         isThreadSelected = false;
-        loadFragment(new ProfileFragment());
+        loadFragment(new MapFragment());
         updateTabStates(false);
     }
 
@@ -163,17 +174,17 @@ public class HomeActivity extends AppCompatActivity {
             btnThread.setColorFilter(colorSelected);
             textThread.setTextColor(colorSelected);
 
-            // Profile tab unselected
-            btnProfile.setColorFilter(colorUnselected);
-            textProfile.setTextColor(colorUnselected);
+            // Map tab unselected
+            btnMap.setColorFilter(colorUnselected);
+            textMap.setTextColor(colorUnselected);
         } else {
             // Thread tab unselected
             btnThread.setColorFilter(colorUnselected);
             textThread.setTextColor(colorUnselected);
 
-            // Profile tab selected
-            btnProfile.setColorFilter(colorSelected);
-            textProfile.setTextColor(colorSelected);
+            // Map tab selected
+            btnMap.setColorFilter(colorSelected);
+            textMap.setTextColor(colorSelected);
         }
     }
 
@@ -181,6 +192,12 @@ public class HomeActivity extends AppCompatActivity {
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         transaction.replace(R.id.fragment_container, fragment);
         transaction.commit();
+    }
+
+    private void openCreateJourneyActivity() {
+        // Create intent to open the Create Journey Activity
+        Intent intent = new Intent(this, CreateJourneyActivity.class);
+        startActivity(intent);
     }
 
     private void checkLocationPermission() {

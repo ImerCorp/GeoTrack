@@ -8,4 +8,19 @@
     <color name="slider_background">#E0E0E0</color>
     <color name="slider_indicator">#2196F3</color>
     <color name="primary_color">#E0E0E0</color>
+
+    <!-- Header Colors -->
+    <color name="header_gradient_start">#667eea</color>
+    <color name="header_gradient_end">#764ba2</color>
+    <color name="white_transparent">#40FFFFFF</color>
+    <color name="logo_background">#FF4081</color>
+    <color name="primary_dark">#2C3E50</color>
+
+    <!-- Existing colors (keep your existing ones too) -->
+    <color name="colorPrimary">#667eea</color>
+    <color name="colorPrimaryDark">#5a67d8</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="gray_light">#F5F5F5</color>
+    <color name="gray_medium">#CCCCCC</color>
+    <color name="gray_dark">#666666</color>
 </resources>
