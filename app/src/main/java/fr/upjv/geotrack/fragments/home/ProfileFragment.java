@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,6 +21,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -71,6 +74,7 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     private TextView emailAddress;
     private TextView memberSince;
     private TextView journeyCount;
+    private ImageButton backButton;
     private Button addJourneyButton;
     private RecyclerView journeysRecyclerView;
     private LinearLayout emptyStateLayout;
@@ -126,6 +130,8 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
         // Initialize UI components
         initializeViews(view);
 
+        setupBackButton();
+
         // Load user profile data
         loadUserProfile();
 
@@ -167,6 +173,7 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
     }
 
     private void initializeViews(View view) {
+        backButton = view.findViewById(R.id.back_button);
         // Profile views
         profileImage = view.findViewById(R.id.profile_image);
         displayName = view.findViewById(R.id.display_name);
@@ -191,6 +198,37 @@ public class ProfileFragment extends Fragment implements JourneyAdapter.OnJourne
             loadUserStats();
         } else {
             redirectToLogin();
+        }
+    }
+
+    private void setupBackButton() {
+        if (backButton != null) {
+            backButton.setOnClickListener(v -> {
+                // Check if we have a fragment manager and can go back
+                FragmentManager fragmentManager = getParentFragmentManager();
+
+                if (fragmentManager.getBackStackEntryCount() > 0) {
+                    // Pop the fragment from back stack
+                    fragmentManager.popBackStack();
+                } else {
+                    // Alternative: Navigate back to ThreadFragment explicitly
+                    try {
+                        FragmentTransaction transaction = fragmentManager.beginTransaction();
+                        ThreadFragment threadFragment = new ThreadFragment();
+
+                        // Replace with ThreadFragment
+                        transaction.replace(R.id.fragment_container, threadFragment);
+                        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+                        transaction.commit();
+
+                    } catch (Exception e) {
+                        // Last resort: finish the activity
+                        if (getActivity() != null) {
+                            getActivity().finish();
+                        }
+                    }
+                }
+            });
         }
     }
 

@@ -8,6 +8,8 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import fr.upjv.geotrack.R;
 
 public class ThreadFragment extends Fragment {
@@ -63,12 +65,40 @@ public class ThreadFragment extends Fragment {
             });
         }
 
-        // Profile icon click
+        // Profile icon click - Navigate to ProfileFragment
         if (profileIcon != null) {
             profileIcon.setOnClickListener(v -> {
-                // TODO: Navigate to profile fragment or user menu
-                Toast.makeText(getContext(), "Profile clicked", Toast.LENGTH_SHORT).show();
+                navigateToProfileFragment();
             });
+        }
+    }
+
+    private void navigateToProfileFragment() {
+        try {
+            FragmentManager fragmentManager = getParentFragmentManager();
+            FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+            // Create new ProfileFragment instance
+            ProfileFragment profileFragment = new ProfileFragment();
+
+            // Replace current fragment with ProfileFragment
+            // Assuming your main container ID is something like R.id.fragment_container
+            // You may need to adjust this based on your MainActivity's layout
+            transaction.replace(R.id.fragment_container, profileFragment);
+
+            // Add to back stack so user can navigate back
+            transaction.addToBackStack("ThreadFragment");
+
+            // Add transition animation (optional)
+            transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+
+            // Commit the transaction
+            transaction.commit();
+
+        } catch (Exception e) {
+            // Fallback: Show toast if navigation fails
+            Toast.makeText(getContext(), "Opening Profile", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
 }
