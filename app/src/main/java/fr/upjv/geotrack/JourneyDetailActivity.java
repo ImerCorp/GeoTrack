@@ -1,11 +1,10 @@
 package fr.upjv.geotrack;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -20,27 +19,40 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 import fr.upjv.geotrack.adapters.PhotoSliderAdapter;
 import fr.upjv.geotrack.controllers.UserController;
+import fr.upjv.geotrack.controllers.LocalisationController;
 import fr.upjv.geotrack.models.Journey;
 import fr.upjv.geotrack.models.User;
+import fr.upjv.geotrack.models.Localisation;
 
-public class JourneyDetailActivity extends AppCompatActivity
-        implements PhotoSliderAdapter.OnPhotoClickListener, PhotoSliderAdapter.OnPhotoChangeListener {
+public class JourneyDetailActivity extends AppCompatActivity implements PhotoSliderAdapter.OnPhotoClickListener, PhotoSliderAdapter.OnPhotoChangeListener, OnMapReadyCallback {
 
     private static final String TAG = "JourneyDetailActivity";
+
+    // Intent extras
     public static final String EXTRA_JOURNEY_ID = "journey_id";
     public static final String EXTRA_JOURNEY_NAME = "journey_name";
     public static final String EXTRA_JOURNEY_DESCRIPTION = "journey_description";
@@ -60,54 +72,52 @@ public class JourneyDetailActivity extends AppCompatActivity
     private RecyclerView photosRecyclerView;
     private View photosContainer;
     private TextView noPhotosText;
-
-    // Enhanced photo navigation components
     private TextView photoCounter;
     private LinearLayout photoIndicators;
-    private LinearLayout photoNavigation;
-    private ImageButton btnPreviousPhoto;
-    private ImageButton btnNextPhoto;
-    private TextView photoPositionText;
+    private TextView localisationCount;
+    private TextView localisationRange;
 
-    // Journey data
+    // Map Components
+    private MapView mapView;
+    private GoogleMap googleMap;
+    private View mapLoadingOverlay;
+    private View mapNoDataOverlay;
+    private LinearLayout mapControls;
+    private ImageButton btnCenterMap;
+    private ImageButton btnFullscreenMap;
+
+    // Data
     private Journey journey;
     private UserController userController;
+    private LocalisationController localisationController;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
     private PhotoSliderAdapter photoSliderAdapter;
     private List<String> photoUrls;
+    private List<Localisation> journeyLocalisations;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_journey_detail);
 
-        // Initialize Firebase
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
-
-        // Initialize controllers
         userController = new UserController(TAG, this);
-
-        // Initialize photo data
+        localisationController = new LocalisationController();
         photoUrls = new ArrayList<>();
+        journeyLocalisations = new ArrayList<>();
 
-        // Initialize views
         initializeViews();
-
-        // Get journey data from intent
+        initializeMap(savedInstanceState);
         loadJourneyFromIntent();
-
-        // Setup UI
         setupUI();
 
-        // Load user information
         if (journey != null && journey.getUserUUID() != null) {
             loadUserInformation();
+            loadJourneyPhotos();
+            loadJourneyLocalisations();
         }
-
-        // Finalize photo setup and load photos
-        finalizePhotoSetup();
     }
 
     private void initializeViews() {
@@ -122,33 +132,174 @@ public class JourneyDetailActivity extends AppCompatActivity
         photosRecyclerView = findViewById(R.id.photos_recycler_view);
         photosContainer = findViewById(R.id.photos_container);
         noPhotosText = findViewById(R.id.no_photos_text);
-
-        // Enhanced photo navigation views
         photoCounter = findViewById(R.id.photo_counter);
         photoIndicators = findViewById(R.id.photo_indicators);
-        photoNavigation = findViewById(R.id.photo_navigation);
-        btnPreviousPhoto = findViewById(R.id.btn_previous_photo);
-        btnNextPhoto = findViewById(R.id.btn_next_photo);
-        photoPositionText = findViewById(R.id.photo_position_text);
+        localisationCount = findViewById(R.id.localisation_count);
+        localisationRange = findViewById(R.id.localisation_range);
 
-        // Setup photos RecyclerView with enhanced functionality
+        mapView = findViewById(R.id.map_view);
+        mapLoadingOverlay = findViewById(R.id.map_loading_overlay);
+        mapNoDataOverlay = findViewById(R.id.map_no_data_overlay);
+        mapControls = findViewById(R.id.map_controls);
+        btnCenterMap = findViewById(R.id.btn_center_map);
+        btnFullscreenMap = findViewById(R.id.btn_fullscreen_map);
+
         setupPhotosRecyclerView();
-        setupPhotoNavigation();
+        setupMapControls();
+    }
+
+    private void initializeMap(Bundle savedInstanceState) {
+        if (mapView != null) {
+            mapView.onCreate(savedInstanceState);
+            mapView.getMapAsync(this);
+        }
+    }
+
+    private void setupMapControls() {
+        if (btnCenterMap != null) {
+            btnCenterMap.setOnClickListener(v -> centerMapOnRoute());
+        }
+        if (btnFullscreenMap != null) {
+            btnFullscreenMap.setOnClickListener(v -> openFullscreenMap());
+        }
+    }
+
+    private void centerMapOnRoute() {
+        if (googleMap != null && !journeyLocalisations.isEmpty()) {
+            LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+            for (Localisation location : journeyLocalisations) {
+                boundsBuilder.include(new LatLng(location.getLatitude(), location.getLongitude()));
+            }
+
+            try {
+                LatLngBounds bounds = boundsBuilder.build();
+                int padding = 100;
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
+            } catch (Exception e) {
+                Log.e(TAG, "Error centering map", e);
+            }
+        }
+    }
+
+    private void openFullscreenMap() {
+        Toast.makeText(this, "Fullscreen map coming soon", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onMapReady(@NonNull GoogleMap map) {
+        googleMap = map;
+        Log.d(TAG, "Map is ready");
+
+        configureMap();
+
+        if (!journeyLocalisations.isEmpty()) {
+            updateMapWithLocalisations();
+        } else {
+            updateMapUI();
+        }
+    }
+
+    private void configureMap() {
+        if (googleMap == null) return;
+
+        try {
+            googleMap.getUiSettings().setZoomControlsEnabled(true);
+            googleMap.getUiSettings().setCompassEnabled(true);
+            googleMap.getUiSettings().setMapToolbarEnabled(false);
+            googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        } catch (Exception e) {
+            Log.e(TAG, "Error configuring map", e);
+        }
+    }
+
+    private void updateMapWithLocalisations() {
+        if (googleMap == null || journeyLocalisations.isEmpty()) {
+            updateMapUI();
+            return;
+        }
+
+        try {
+            googleMap.clear();
+
+            List<Localisation> sortedLocalisations = new ArrayList<>(journeyLocalisations);
+            Collections.sort(sortedLocalisations, new Comparator<Localisation>() {
+                @Override
+                public int compare(Localisation l1, Localisation l2) {
+                    return l1.getTimestamp().compareTo(l2.getTimestamp());
+                }
+            });
+
+            PolylineOptions polylineOptions = new PolylineOptions()
+                    .color(Color.parseColor("#6C5CE7"))
+                    .width(8f)
+                    .geodesic(true);
+
+            LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+
+            for (int i = 0; i < sortedLocalisations.size(); i++) {
+                Localisation location = sortedLocalisations.get(i);
+                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+                polylineOptions.add(latLng);
+                boundsBuilder.include(latLng);
+
+                if (i == 0) {
+                    googleMap.addMarker(new MarkerOptions()
+                            .position(latLng)
+                            .title("Journey Start")
+                            .snippet(formatTimestamp(location.getTimestamp()))
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+                } else if (i == sortedLocalisations.size() - 1) {
+                    googleMap.addMarker(new MarkerOptions()
+                            .position(latLng)
+                            .title("Journey End")
+                            .snippet(formatTimestamp(location.getTimestamp()))
+                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                }
+            }
+
+            googleMap.addPolyline(polylineOptions);
+
+            LatLngBounds bounds = boundsBuilder.build();
+            int padding = 100;
+            googleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating map with locations", e);
+        }
+
+        updateMapUI();
+    }
+
+    private void updateMapUI() {
+        boolean hasLocalisations = !journeyLocalisations.isEmpty();
+
+        if (mapLoadingOverlay != null) {
+            mapLoadingOverlay.setVisibility(View.GONE);
+        }
+        if (mapNoDataOverlay != null) {
+            mapNoDataOverlay.setVisibility(hasLocalisations ? View.GONE : View.VISIBLE);
+        }
+        if (mapControls != null) {
+            mapControls.setVisibility(hasLocalisations ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private String formatTimestamp(Date timestamp) {
+        SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault());
+        return formatter.format(timestamp);
     }
 
     private void setupPhotosRecyclerView() {
         if (photosRecyclerView != null) {
-            // Use LinearLayoutManager with horizontal orientation
             LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
             photosRecyclerView.setLayoutManager(layoutManager);
 
-            // Create adapter with enhanced functionality
             photoSliderAdapter = new PhotoSliderAdapter(photoUrls, this);
             photoSliderAdapter.setOnPhotoClickListener(this);
-            photoSliderAdapter.setOnPhotoChangeListener(this); // New callback
+            photoSliderAdapter.setOnPhotoChangeListener(this);
             photosRecyclerView.setAdapter(photoSliderAdapter);
 
-            // Add item decoration for spacing
             photosRecyclerView.addItemDecoration(new RecyclerView.ItemDecoration() {
                 @Override
                 public void getItemOffsets(@NonNull Rect outRect, @NonNull View view,
@@ -160,149 +311,138 @@ public class JourneyDetailActivity extends AppCompatActivity
         }
     }
 
-    private void setupPhotoNavigation() {
-        if (btnPreviousPhoto != null) {
-            btnPreviousPhoto.setOnClickListener(v -> {
-                if (photoSliderAdapter != null) {
-                    photoSliderAdapter.goToPrevious();
-                }
-            });
+    private void loadJourneyFromIntent() {
+        Intent intent = getIntent();
+        if (intent == null) {
+            showErrorAndFinish("Error loading journey details");
+            return;
         }
 
-        if (btnNextPhoto != null) {
-            btnNextPhoto.setOnClickListener(v -> {
-                if (photoSliderAdapter != null) {
-                    photoSliderAdapter.goToNext();
-                }
-            });
+        String id = intent.getStringExtra(EXTRA_JOURNEY_ID);
+        String name = intent.getStringExtra(EXTRA_JOURNEY_NAME);
+        String description = intent.getStringExtra(EXTRA_JOURNEY_DESCRIPTION);
+        String userUUID = intent.getStringExtra(EXTRA_JOURNEY_USER_UUID);
+        long startDateMs = intent.getLongExtra(EXTRA_JOURNEY_START_DATE, 0);
+        long endDateMs = intent.getLongExtra(EXTRA_JOURNEY_END_DATE, 0);
+
+        if (id != null && name != null && startDateMs != 0 && endDateMs != 0) {
+            Date startDate = new Date(startDateMs);
+            Date endDate = new Date(endDateMs);
+            journey = new Journey(id, userUUID, startDate, endDate, name, description, null, null);
+        } else {
+            showErrorAndFinish("Missing required journey data");
         }
     }
 
-    private void loadJourneyFromIntent() {
-        Intent intent = getIntent();
-
-        if (intent != null) {
-            String id = intent.getStringExtra(EXTRA_JOURNEY_ID);
-            String name = intent.getStringExtra(EXTRA_JOURNEY_NAME);
-            String description = intent.getStringExtra(EXTRA_JOURNEY_DESCRIPTION);
-            String userUUID = intent.getStringExtra(EXTRA_JOURNEY_USER_UUID);
-
-            long startDateMs = intent.getLongExtra(EXTRA_JOURNEY_START_DATE, 0);
-            long endDateMs = intent.getLongExtra(EXTRA_JOURNEY_END_DATE, 0);
-
-            if (id != null && name != null && startDateMs != 0 && endDateMs != 0) {
-                Date startDate = new Date(startDateMs);
-                Date endDate = new Date(endDateMs);
-
-                journey = new Journey(id, userUUID, startDate, endDate, name, description, null, null);
-                Log.d(TAG, "Journey loaded: " + journey.getName());
-            } else {
-                Log.e(TAG, "Missing required journey data in intent");
-                Toast.makeText(this, "Error loading journey details", Toast.LENGTH_SHORT).show();
-                finish();
-            }
-        } else {
-            Log.e(TAG, "No intent data received");
-            Toast.makeText(this, "Error loading journey details", Toast.LENGTH_SHORT).show();
-            finish();
+    private void loadJourneyLocalisations() {
+        if (journey == null) {
+            updateLocalisationUI();
+            updateMapUI();
+            return;
         }
+
+        localisationController.getLocalisationsForJourney(journey)
+                .addOnSuccessListener(localisations -> {
+                    journeyLocalisations.clear();
+                    journeyLocalisations.addAll(localisations);
+                    updateLocalisationUI();
+
+                    if (googleMap != null) {
+                        updateMapWithLocalisations();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load localizations", e);
+                    Toast.makeText(this, "Failed to load journey locations", Toast.LENGTH_SHORT).show();
+                    updateLocalisationUI();
+                    updateMapUI();
+                });
+    }
+
+    private void updateLocalisationUI() {
+        if (localisationCount != null) {
+            int count = journeyLocalisations.size();
+            String countText = count == 0 ? "No locations recorded" :
+                    count == 1 ? "1 location recorded" :
+                            count + " locations recorded";
+            localisationCount.setText(countText);
+        }
+
+        if (localisationRange != null && !journeyLocalisations.isEmpty()) {
+            double minLat = Double.MAX_VALUE;
+            double maxLat = Double.MIN_VALUE;
+            double minLng = Double.MAX_VALUE;
+            double maxLng = Double.MIN_VALUE;
+
+            for (Localisation loc : journeyLocalisations) {
+                minLat = Math.min(minLat, loc.getLatitude());
+                maxLat = Math.max(maxLat, loc.getLatitude());
+                minLng = Math.min(minLng, loc.getLongitude());
+                maxLng = Math.max(maxLng, loc.getLongitude());
+            }
+
+            double latRange = maxLat - minLat;
+            double lngRange = maxLng - minLng;
+            double approximateDistance = Math.sqrt(latRange * latRange + lngRange * lngRange) * 111;
+
+            String rangeText = String.format(Locale.getDefault(), "Coverage: %.1f km range", approximateDistance);
+            localisationRange.setText(rangeText);
+            localisationRange.setVisibility(View.VISIBLE);
+        } else if (localisationRange != null) {
+            localisationRange.setVisibility(View.GONE);
+        }
+    }
+
+    public List<Localisation> getJourneyLocalisations() {
+        return new ArrayList<>(journeyLocalisations);
+    }
+
+    public boolean hasLocalisations() {
+        return !journeyLocalisations.isEmpty();
     }
 
     private void loadJourneyPhotos() {
         if (journey == null || journey.getId() == null) {
-            Log.e(TAG, "Journey or journey ID is null - cannot load photos");
             updatePhotosUI();
             return;
         }
 
-        Log.d(TAG, "Loading photos for journey: " + journey.getId());
-
-        // Query Firestore for the specific journey to get its photos
         db.collection("journey")
                 .whereEqualTo("id", journey.getId())
                 .get()
                 .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        QuerySnapshot querySnapshot = task.getResult();
+                    if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
+                        QueryDocumentSnapshot document = (QueryDocumentSnapshot) task.getResult().getDocuments().get(0);
+                        Object imagePathsObj = document.get("imagePaths");
+                        List<String> imagePaths = new ArrayList<>();
 
-                        if (querySnapshot != null && !querySnapshot.isEmpty()) {
-                            // Should only be one document since we're querying by ID
-                            QueryDocumentSnapshot document = (QueryDocumentSnapshot) querySnapshot.getDocuments().get(0);
-
+                        if (imagePathsObj instanceof List) {
                             try {
-                                Log.d(TAG, "Processing journey document: " + document.getId());
-
-                                // Handle image paths - check for both possible field types
-                                List<String> imagePaths = null;
-                                Object imagePathsObj = document.get("imagePaths");
-                                if (imagePathsObj instanceof List) {
-                                    try {
-                                        imagePaths = (List<String>) imagePathsObj;
-                                        Log.d(TAG, "Found " + (imagePaths != null ? imagePaths.size() : 0) + " image paths");
-                                    } catch (ClassCastException e) {
-                                        Log.w(TAG, "imagePaths field is not a List<String>: " + document.getId(), e);
-                                        imagePaths = new ArrayList<>();
-                                    }
-                                } else {
-                                    Log.d(TAG, "No imagePaths field or field is not a List: " + document.getId());
-                                    imagePaths = new ArrayList<>();
-                                }
-
-                                // Update the journey object with the image paths
-                                if (imagePaths != null && !imagePaths.isEmpty()) {
-                                    journey.setImagePaths(imagePaths);
-                                    Log.d(TAG, "Found " + imagePaths.size() + " image paths, converting to download URLs");
-
-                                    // Convert Firebase Storage paths to download URLs
-                                    convertStoragePathsToUrls(imagePaths);
-                                } else {
-                                    photoUrls.clear();
-                                    Log.d(TAG, "No photos found for journey");
-                                    updatePhotosUI();
-                                }
-
-                            } catch (Exception e) {
-                                Log.e(TAG, "Error parsing journey document: " + document.getId(), e);
-                                updatePhotosUI();
+                                imagePaths = (List<String>) imagePathsObj;
+                            } catch (ClassCastException e) {
+                                Log.w(TAG, "imagePaths field is not a List<String>", e);
                             }
+                        }
+
+                        if (!imagePaths.isEmpty()) {
+                            journey.setImagePaths(imagePaths);
+                            convertStoragePathsToUrls(imagePaths);
                         } else {
-                            Log.w(TAG, "No journey document found with ID: " + journey.getId());
+                            photoUrls.clear();
                             updatePhotosUI();
                         }
                     } else {
-                        Exception exception = task.getException();
-                        Log.w(TAG, "Error getting journey photos", exception);
-
-                        String errorMessage = "Failed to load journey photos";
-                        if (exception != null) {
-                            String exceptionMessage = exception.getMessage();
-                            Log.e(TAG, "Detailed error: " + exceptionMessage);
-
-                            if (exceptionMessage != null) {
-                                if (exceptionMessage.contains("PERMISSION_DENIED")) {
-                                    errorMessage = "Permission denied accessing photos";
-                                } else if (exceptionMessage.contains("UNAUTHENTICATED")) {
-                                    errorMessage = "Authentication required";
-                                } else if (exceptionMessage.contains("UNAVAILABLE")) {
-                                    errorMessage = "Service unavailable";
-                                }
-                            }
-                        }
-
-                        Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
                         updatePhotosUI();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Network or other failure loading journey photos", e);
-                    Toast.makeText(this, "Network error loading photos: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Network error loading photos", Toast.LENGTH_SHORT).show();
                     updatePhotosUI();
                 });
     }
 
     private void convertStoragePathsToUrls(List<String> imagePaths) {
         if (imagePaths == null || imagePaths.isEmpty()) {
-            Log.d(TAG, "No image paths to convert");
             updatePhotosUI();
             return;
         }
@@ -311,54 +451,37 @@ public class JourneyDetailActivity extends AppCompatActivity
         final int totalPaths = imagePaths.size();
         final int[] completedCount = {0};
 
-        Log.d(TAG, "Converting " + totalPaths + " storage paths to download URLs");
-
         for (String imagePath : imagePaths) {
             if (imagePath == null || imagePath.trim().isEmpty()) {
-                Log.w(TAG, "Skipping null or empty image path");
                 completedCount[0]++;
                 if (completedCount[0] == totalPaths) {
-                    Log.d(TAG, "All paths processed, updating UI with " + photoUrls.size() + " valid URLs");
                     runOnUiThread(this::updatePhotosUI);
                 }
                 continue;
             }
 
-            // Remove leading slash if present
             String cleanPath = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
-
-            Log.d(TAG, "Converting path to URL: " + cleanPath);
-
             StorageReference imageRef = storage.getReference().child(cleanPath);
 
             imageRef.getDownloadUrl()
                     .addOnSuccessListener(uri -> {
-                        String downloadUrl = uri.toString();
-                        Log.d(TAG, "Successfully got download URL for: " + cleanPath);
-
                         synchronized (photoUrls) {
-                            photoUrls.add(downloadUrl);
+                            photoUrls.add(uri.toString());
                         }
-
                         completedCount[0]++;
                         if (completedCount[0] == totalPaths) {
-                            Log.d(TAG, "All paths processed, updating UI with " + photoUrls.size() + " valid URLs");
                             runOnUiThread(this::updatePhotosUI);
                         }
                     })
                     .addOnFailureListener(exception -> {
-                        Log.e(TAG, "Failed to get download URL for: " + cleanPath, exception);
-
                         completedCount[0]++;
                         if (completedCount[0] == totalPaths) {
-                            Log.d(TAG, "All paths processed, updating UI with " + photoUrls.size() + " valid URLs");
                             runOnUiThread(this::updatePhotosUI);
                         }
                     });
         }
     }
 
-    // Enhanced updatePhotosUI method
     private void updatePhotosUI() {
         if (photoSliderAdapter != null) {
             photoSliderAdapter.updatePhotos(photoUrls);
@@ -366,7 +489,6 @@ public class JourneyDetailActivity extends AppCompatActivity
 
         boolean hasPhotos = photoUrls != null && !photoUrls.isEmpty();
 
-        // Show/hide main containers
         if (photosContainer != null) {
             photosContainer.setVisibility(hasPhotos ? View.VISIBLE : View.GONE);
         }
@@ -381,26 +503,11 @@ public class JourneyDetailActivity extends AppCompatActivity
         }
 
         if (hasPhotos) {
-            // Update photo counter
             updatePhotoCounter(1, photoUrls.size());
-
-            // Show/hide navigation based on number of photos
-            boolean showNavigation = photoUrls.size() > 1;
-            if (photoNavigation != null) {
-                photoNavigation.setVisibility(showNavigation ? View.VISIBLE : View.GONE);
-            }
-
-            // Create indicators
             createPhotoIndicators(photoUrls.size());
-
-            Log.d(TAG, "Showing " + photoUrls.size() + " photos with navigation");
         } else {
-            // Hide all photo navigation elements
             if (photoCounter != null) photoCounter.setVisibility(View.GONE);
-            if (photoNavigation != null) photoNavigation.setVisibility(View.GONE);
             if (photoIndicators != null) photoIndicators.setVisibility(View.GONE);
-
-            Log.d(TAG, "No photos to display");
         }
     }
 
@@ -412,10 +519,8 @@ public class JourneyDetailActivity extends AppCompatActivity
 
         photoIndicators.removeAllViews();
 
-        // Only show indicators if there are multiple photos but not too many
         if (count > 1 && count <= 10) {
             photoIndicators.setVisibility(View.VISIBLE);
-
             for (int i = 0; i < count; i++) {
                 View indicator = createIndicatorDot(i == 0);
                 photoIndicators.addView(indicator);
@@ -434,7 +539,6 @@ public class JourneyDetailActivity extends AppCompatActivity
         params.setMargins(margin, 0, margin, 0);
         dot.setLayoutParams(params);
 
-        // Create drawable for dot
         android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
         drawable.setShape(android.graphics.drawable.GradientDrawable.OVAL);
         drawable.setColor(isActive ? getColor(R.color.colorPrimary) : getColor(R.color.gray_light));
@@ -448,10 +552,6 @@ public class JourneyDetailActivity extends AppCompatActivity
             photoCounter.setText(current + " / " + total);
             photoCounter.setVisibility(total > 1 ? View.VISIBLE : View.GONE);
         }
-
-        if (photoPositionText != null && total > 0) {
-            photoPositionText.setText(current + " of " + total);
-        }
     }
 
     private void updateIndicators(int activePosition) {
@@ -464,138 +564,46 @@ public class JourneyDetailActivity extends AppCompatActivity
                 drawable.setShape(android.graphics.drawable.GradientDrawable.OVAL);
                 drawable.setColor(isActive ? getColor(R.color.colorPrimary) : getColor(R.color.gray_light));
                 indicator.setBackground(drawable);
-
-                // Add subtle animation
-                indicator.animate()
-                        .scaleX(isActive ? 1.2f : 1.0f)
-                        .scaleY(isActive ? 1.2f : 1.0f)
-                        .setDuration(200)
-                        .start();
             }
         }
     }
 
-    // Implement the new callback interface
     @Override
     public void onPhotoChanged(int position, int total) {
-        Log.d(TAG, "Photo changed to position: " + position + " of " + total);
-
-        // Update counter and indicators
         updatePhotoCounter(position + 1, total);
         updateIndicators(position);
-
-        // Update navigation buttons state
-        updateNavigationButtons(position, total);
     }
 
-    private void updateNavigationButtons(int position, int total) {
-        if (btnPreviousPhoto != null && btnNextPhoto != null) {
-            // For circular navigation, buttons are always enabled
-            // For linear navigation, disable at ends:
-            // btnPreviousPhoto.setEnabled(position > 0);
-            // btnNextPhoto.setEnabled(position < total - 1);
-
-            // Using circular navigation - always enabled
-            btnPreviousPhoto.setEnabled(total > 1);
-            btnNextPhoto.setEnabled(total > 1);
-
-            // Optional: Add visual feedback for disabled state
-            float alpha = total > 1 ? 1.0f : 0.5f;
-            btnPreviousPhoto.setAlpha(alpha);
-            btnNextPhoto.setAlpha(alpha);
-        }
-    }
-
-    // Enhanced photo click handler
     @Override
     public void onPhotoClick(int position, String photoUrl) {
-        Log.d(TAG, "Photo clicked at position: " + position + ", URL: " + photoUrl);
-
-        // Create full-screen photo viewer intent
         Intent intent = new Intent(this, FullScreenPhotoActivity.class);
         intent.putStringArrayListExtra("photo_urls", new ArrayList<>(photoUrls));
         intent.putExtra("initial_position", position);
         intent.putExtra("journey_name", journey != null ? journey.getName() : "Journey Photos");
-
-        // Add shared element transition if desired
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            View sharedView = photosRecyclerView.getLayoutManager().findViewByPosition(position);
-            if (sharedView != null) {
-                ImageView imageView = sharedView.findViewById(R.id.photo_image);
-                if (imageView != null) {
-                    android.app.ActivityOptions options = android.app.ActivityOptions
-                            .makeSceneTransitionAnimation(this, imageView, "photo_transition");
-                    startActivity(intent, options.toBundle());
-                    return;
-                }
-            }
-        }
-
         startActivity(intent);
     }
 
-    // Add gesture detection for additional swipe functionality
-    private void setupGestureDetection() {
-        if (photosRecyclerView != null) {
-            GestureDetector gestureDetector = new GestureDetector(this,
-                    new GestureDetector.SimpleOnGestureListener() {
-                        @Override
-                        public boolean onDoubleTap(MotionEvent e) {
-                            // Handle double tap - could zoom or open full screen
-                            int position = photoSliderAdapter.getCurrentPosition();
-                            String photoUrl = photoSliderAdapter.getPhotoUrl(position);
-                            if (photoUrl != null) {
-                                onPhotoClick(position, photoUrl);
-                            }
-                            return true;
-                        }
-                    }
-            );
-
-            photosRecyclerView.setOnTouchListener((v, event) -> {
-                gestureDetector.onTouchEvent(event);
-                return false;
-            });
-        }
-    }
-
-    // Call this in your onCreate method after setupUI()
-    private void finalizePhotoSetup() {
-        setupGestureDetection();
-
-        // Load photos after UI is set up
-        if (journey != null) {
-            loadJourneyPhotos();
-        }
-    }
-
     private void loadUserInformation() {
-        Log.d(TAG, "Loading user information for UUID: " + journey.getUserUUID());
-
         userController.getUser(journey.getUserUUID(), new UserController.UserCallback() {
             @Override
             public void onSuccess(User user) {
-                Log.d(TAG, "User information loaded successfully");
                 displayUserInformation(user);
             }
 
             @Override
             public void onFailure(String error) {
-                Log.e(TAG, "Failed to load user information: " + error);
                 displayDefaultUserInformation();
             }
         });
     }
 
     private void displayUserInformation(User user) {
-        // Set user display name
         if (user.getDisplayName() != null && !user.getDisplayName().trim().isEmpty()) {
             userDisplayName.setText(user.getDisplayName());
         } else {
             userDisplayName.setText(user.getEmail());
         }
 
-        // Load profile picture
         if (user.hasProfilePictureUrl()) {
             Glide.with(this)
                     .load(user.getProfilePictureUrl())
@@ -604,9 +612,7 @@ public class JourneyDetailActivity extends AppCompatActivity
                     .error(R.drawable.ic_default_profile)
                     .into(userProfilePicture);
         } else {
-            // Show default profile picture with user initials
             userProfilePicture.setImageResource(R.drawable.ic_default_profile);
-            // You could also create a text-based avatar with initials here
         }
 
         userProfilePicture.setVisibility(View.VISIBLE);
@@ -621,17 +627,11 @@ public class JourneyDetailActivity extends AppCompatActivity
     }
 
     private void setupUI() {
-        if (journey == null) {
-            return;
-        }
+        if (journey == null) return;
 
-        // Setup back button
         backButton.setOnClickListener(v -> finish());
-
-        // Set journey title
         journeyTitle.setText(journey.getName());
 
-        // Set journey description
         if (journey.hasDescription()) {
             journeyDescription.setText(journey.getDescription());
             journeyDescription.setVisibility(View.VISIBLE);
@@ -639,14 +639,11 @@ public class JourneyDetailActivity extends AppCompatActivity
             journeyDescription.setVisibility(View.GONE);
         }
 
-        // Format and set dates
         SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, MMMM dd, yyyy", Locale.getDefault());
         String startDateStr = dateFormat.format(journey.getStart());
         String endDateStr = dateFormat.format(journey.getEnd());
-
         journeyDates.setText("From " + startDateStr + " to " + endDateStr);
 
-        // Calculate and set duration
         long durationMs = journey.getEnd().getTime() - journey.getStart().getTime();
         long durationDays = durationMs / (24 * 60 * 60 * 1000);
 
@@ -658,7 +655,6 @@ public class JourneyDetailActivity extends AppCompatActivity
             journeyDuration.setText(durationDays + " days");
         }
 
-        // Set status
         setJourneyStatus();
     }
 
@@ -677,6 +673,51 @@ public class JourneyDetailActivity extends AppCompatActivity
             journeyStatus.setText("UPCOMING");
             journeyStatus.setTextColor(getColor(android.R.color.holo_blue_dark));
             journeyStatus.setBackgroundResource(R.drawable.gradient_header_background);
+        }
+    }
+
+    private void showErrorAndFinish(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        finish();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mapView != null) {
+            mapView.onResume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mapView != null) {
+            mapView.onPause();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mapView != null) {
+            mapView.onDestroy();
+        }
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        if (mapView != null) {
+            mapView.onLowMemory();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mapView != null) {
+            mapView.onSaveInstanceState(outState);
         }
     }
 
