@@ -11,13 +11,11 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Hero Header Section -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="320dp"
             android:background="@drawable/gradient_header_background">
 
-            <!-- Status Badge - Top Right -->
             <TextView
                 android:id="@+id/journey_status"
                 android:layout_width="wrap_content"
@@ -36,7 +34,6 @@
                 android:elevation="4dp"
                 tools:text="COMPLETED" />
 
-            <!-- Back Button - Top Left -->
             <ImageButton
                 android:id="@+id/back_button"
                 android:layout_width="44dp"
@@ -50,7 +47,6 @@
                 android:contentDescription="Back"
                 android:elevation="4dp" />
 
-            <!-- Journey Title - Center -->
             <TextView
                 android:id="@+id/journey_title"
                 android:layout_width="match_parent"
@@ -68,7 +64,6 @@
                 android:lineSpacingExtra="4dp"
                 tools:text="Summer Road Trip Adventure" />
 
-            <!-- Journey Description - Below Title -->
             <TextView
                 android:id="@+id/journey_description"
                 android:layout_width="match_parent"
@@ -88,7 +83,6 @@
 
         </RelativeLayout>
 
-        <!-- User Profile Section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -141,7 +135,6 @@
 
         </LinearLayout>
 
-        <!-- Journey Details Section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -159,7 +152,6 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="24dp" />
 
-            <!-- Date Information -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -212,7 +204,6 @@
 
             </LinearLayout>
 
-            <!-- Duration Information -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -265,7 +256,6 @@
 
         </LinearLayout>
 
-        <!-- Enhanced Photos Section with Open Container -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -273,7 +263,6 @@
             android:paddingTop="32dp"
             android:paddingBottom="8dp">
 
-            <!-- Section Header with padding only on sides -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -291,7 +280,6 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Photo counter -->
                 <TextView
                     android:id="@+id/photo_counter"
                     android:layout_width="wrap_content"
@@ -307,7 +295,6 @@
 
             </LinearLayout>
 
-            <!-- Open Photos Container - No card wrapper, extends to screen edges -->
             <LinearLayout
                 android:id="@+id/photos_container"
                 android:layout_width="match_parent"
@@ -315,7 +302,6 @@
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <!-- Main photo slider - extends to screen edges -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/photos_recycler_view"
                     android:layout_width="match_parent"
@@ -325,7 +311,6 @@
                     android:paddingEnd="16dp"
                     android:clipChildren="false" />
 
-                <!-- Navigation indicators - centered with side padding -->
                 <LinearLayout
                     android:id="@+id/photo_indicators"
                     android:layout_width="wrap_content"
@@ -338,7 +323,6 @@
 
             </LinearLayout>
 
-            <!-- No Photos State -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/no_photos_card"
                 android:layout_width="match_parent"
@@ -389,7 +373,6 @@
 
         </LinearLayout>
 
-        <!-- Route and Locations Section with Google Maps -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -414,7 +397,6 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <!-- Location stats -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -443,7 +425,6 @@
 
             </LinearLayout>
 
-            <!-- Google Maps Container with Card Style -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/map_card"
                 android:layout_width="match_parent"
@@ -457,45 +438,41 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <!-- Map Fragment Container -->
                     <FrameLayout
                         android:id="@+id/map_container"
                         android:layout_width="match_parent"
                         android:layout_height="300dp">
 
-                        <!-- Google Map Fragment -->
-                        <com.google.android.gms.maps.MapView
-                            android:id="@+id/map_view"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent" />
-
-                        <!-- Loading overlay -->
-                        <LinearLayout
-                            android:id="@+id/map_loading_overlay"
+                        <fragment
+                            android:id="@+id/map"
+                            android:name="com.google.android.gms.maps.SupportMapFragment"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:background="@color/white"
-                            android:gravity="center"
-                            android:orientation="vertical"
-                            android:visibility="visible">
+                            tools:context=".JourneyActivity" /> <LinearLayout
+                        android:id="@+id/map_loading_overlay"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/white"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="visible">
 
-                            <ProgressBar
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
-                                android:layout_marginBottom="12dp"
-                                android:indeterminateTint="#6C5CE7" />
+                        <ProgressBar
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:layout_marginBottom="12dp"
+                            android:indeterminateTint="#6C5CE7" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Loading map..."
-                                android:textColor="#8A8A8A"
-                                android:textSize="14sp"
-                                android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Loading map..."
+                            android:textColor="#8A8A8A"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
-                        </LinearLayout>
+                    </LinearLayout>
 
-                        <!-- No locations overlay -->
                         <LinearLayout
                             android:id="@+id/map_no_data_overlay"
                             android:layout_width="match_parent"
@@ -534,7 +511,6 @@
 
                     </FrameLayout>
 
-                    <!-- Map Controls -->
                     <LinearLayout
                         android:id="@+id/map_controls"
                         android:layout_width="match_parent"
@@ -582,7 +558,6 @@
 
         </LinearLayout>
 
-        <!-- Bottom Spacing -->
         <View
             android:layout_width="match_parent"
             android:layout_height="32dp" />

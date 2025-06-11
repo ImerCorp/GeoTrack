@@ -1,5 +1,6 @@
 package fr.upjv.geotrack.fragments.home;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,6 +22,7 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import fr.upjv.geotrack.R;
+import fr.upjv.geotrack.SettingsActivity;
 
 public class MapFragment extends Fragment {
 
@@ -108,8 +110,8 @@ public class MapFragment extends Fragment {
         // Hamburger menu click
         if (hamburgerMenu != null) {
             hamburgerMenu.setOnClickListener(v -> {
-                // TODO: Open navigation drawer or side menu
-                Toast.makeText(getContext(), "Menu clicked", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(getContext(), SettingsActivity.class);
+                startActivity(intent);
             });
         }
 

@@ -21,7 +21,7 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.bitmap.CircleCrop;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.SupportMapFragment; // CHANGEMENT ICI
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -77,8 +77,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
     private TextView localisationCount;
     private TextView localisationRange;
 
-    // Map Components
-    private MapView mapView;
+    // Map Components - CHANGEMENT ICI
+    private SupportMapFragment mapFragment;
     private GoogleMap googleMap;
     private View mapLoadingOverlay;
     private View mapNoDataOverlay;
@@ -109,7 +109,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         journeyLocalisations = new ArrayList<>();
 
         initializeViews();
-        initializeMap(savedInstanceState);
+        initializeMap(); // CHANGEMENT ICI - Suppression du paramètre savedInstanceState
         loadJourneyFromIntent();
         setupUI();
 
@@ -137,7 +137,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         localisationCount = findViewById(R.id.localisation_count);
         localisationRange = findViewById(R.id.localisation_range);
 
-        mapView = findViewById(R.id.map_view);
+        // CHANGEMENT ICI - Suppression des références directes au MapView
         mapLoadingOverlay = findViewById(R.id.map_loading_overlay);
         mapNoDataOverlay = findViewById(R.id.map_no_data_overlay);
         mapControls = findViewById(R.id.map_controls);
@@ -148,10 +148,23 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         setupMapControls();
     }
 
-    private void initializeMap(Bundle savedInstanceState) {
-        if (mapView != null) {
-            mapView.onCreate(savedInstanceState);
-            mapView.getMapAsync(this);
+    // CHANGEMENT PRINCIPAL ICI
+    private void initializeMap() {
+        // Obtenir le fragment de la carte
+        mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+            Log.d(TAG, "Map fragment initialized, requesting map...");
+        } else {
+            Log.e(TAG, "Map fragment not found! Check your layout file.");
+            // Afficher l'overlay d'erreur si le fragment n'est pas trouvé
+            if (mapNoDataOverlay != null) {
+                mapNoDataOverlay.setVisibility(View.VISIBLE);
+            }
+            if (mapLoadingOverlay != null) {
+                mapLoadingOverlay.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -192,6 +205,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
 
         configureMap();
 
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(49.8941, 2.2956), 10));
+
         if (!journeyLocalisations.isEmpty()) {
             updateMapWithLocalisations();
         } else {
@@ -207,6 +222,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
             googleMap.getUiSettings().setCompassEnabled(true);
             googleMap.getUiSettings().setMapToolbarEnabled(false);
             googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+
+            Log.d(TAG, "Map configured successfully");
         } catch (Exception e) {
             Log.e(TAG, "Error configuring map", e);
         }
@@ -264,6 +281,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
             int padding = 100;
             googleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));
 
+            Log.d(TAG, "Map updated with " + sortedLocalisations.size() + " locations");
+
         } catch (Exception e) {
             Log.e(TAG, "Error updating map with locations", e);
         }
@@ -283,6 +302,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         if (mapControls != null) {
             mapControls.setVisibility(hasLocalisations ? View.VISIBLE : View.GONE);
         }
+
+        Log.d(TAG, "Map UI updated - hasLocalisations: " + hasLocalisations);
     }
 
     private String formatTimestamp(Date timestamp) {
@@ -341,14 +362,19 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
             return;
         }
 
+        Log.d(TAG, "Loading localisations for journey: " + journey.getId());
+
         localisationController.getLocalisationsForJourney(journey)
                 .addOnSuccessListener(localisations -> {
+                    Log.d(TAG, "Localisations loaded successfully: " + localisations.size());
                     journeyLocalisations.clear();
                     journeyLocalisations.addAll(localisations);
                     updateLocalisationUI();
 
                     if (googleMap != null) {
                         updateMapWithLocalisations();
+                    } else {
+                        Log.d(TAG, "Google map not ready yet, localisations will be displayed when map is ready");
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -681,45 +707,9 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         finish();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (mapView != null) {
-            mapView.onResume();
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (mapView != null) {
-            mapView.onPause();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mapView != null) {
-            mapView.onDestroy();
-        }
-    }
-
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        if (mapView != null) {
-            mapView.onLowMemory();
-        }
-    }
-
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if (mapView != null) {
-            mapView.onSaveInstanceState(outState);
-        }
-    }
+    // SUPPRESSION DES MÉTHODES LIÉES AU MAPVIEW
+    // Les méthodes onResume, onPause, onDestroy, onLowMemory, onSaveInstanceState
+    // ne sont plus nécessaires car nous utilisons un SupportMapFragment
 
     public static void startActivity(android.content.Context context, Journey journey) {
         Intent intent = new Intent(context, JourneyDetailActivity.class);

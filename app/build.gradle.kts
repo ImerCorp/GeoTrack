@@ -48,6 +48,13 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("de.hdodenhof:circleimageview:3.1.0")
 
+    // Google Maps
+    implementation ("com.google.android.gms:play-services-maps:18.2.0")
+    implementation ("com.google.android.gms:play-services-location:21.0.1")
+
+    // For material design components
+    implementation ("com.google.android.material:material:1.11.0")
+
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)

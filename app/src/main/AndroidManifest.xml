@@ -2,19 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.upjv.geotrack">
 
-    <!-- Permissions réseau -->
+    <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Permissions de localisation -->
+    <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
-    <!-- Permission pour le service au premier plan -->
+    <!-- Foreground service permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!-- Autorisation pour redémarrer le service après reboot -->
+    <!-- Auto-start on reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -25,16 +26,20 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoTrack">
 
-        <!-- Clé API Google Maps -->
+        <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDb9ICVQS7fDUZ8VIQ2Cu_Bj5wxzaIsP5k" />
+            android:value="AIzaSyDEdVA5AGtxukWdLQKXR-m1Z8PewJKpZ-c" />
 
-        <!-- Activités principales -->
+        <!-- Fullscreen photo viewer -->
+        <activity
+            android:name=".FullScreenPhotoActivity"
+            android:exported="false" />
+
+        <!-- Main & Auth -->
         <activity
             android:name=".MainActivity"
             android:exported="false" />
-
         <activity
             android:name=".AuthActivity"
             android:exported="true">
@@ -44,34 +49,33 @@
             </intent-filter>
         </activity>
 
+        <!-- Home screen -->
         <activity
             android:name=".HomeActivity"
             android:exported="false" />
 
-        <!-- Activity pour les détails d’un Journey -->
+        <!-- Settings -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <!-- Journey activities -->
         <activity
             android:name=".JourneyDetailActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
-
-        <!-- Activity pour créer un nouveau Journey -->
         <activity
             android:name=".CreateJourneyActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
-        <!-- Activity de profil utilisateur -->
+        <!-- User Profile Activity -->
         <activity
             android:name=".UserProfileActivity"
             android:exported="true"
             android:parentActivityName=".MainActivity" />
 
-        <!-- Activity pour affiche une photo plein écran -->
-        <activity
-            android:name=".FullScreenPhotoActivity"
-            android:exported="false" />
-
-        <!-- Service de localisation en tâche de fond -->
+        <!-- Location service -->
         <service
             android:name=".services.LocationService"
             android:enabled="true"
@@ -79,7 +83,7 @@
             android:foregroundServiceType="location"
             android:permission="android.permission.FOREGROUND_SERVICE" />
 
-        <!-- Récepteur pour redémarrer le service après reboot ou update -->
+        <!-- Receiver to restart service after reboot/update -->
         <receiver
             android:name=".services.LocationServiceRestarter"
             android:enabled="true"
