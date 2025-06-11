@@ -124,6 +124,7 @@ public class LocationService extends Service {
                             );
 
                             new LocalisationController().saveLocalisation(localisation, this.TAG);
+                            new LocalisationController().updateUserCurrentLocation(localisation, this.TAG);
                         } else {
                             Log.w(TAG, "Location is null - GPS might be disabled");
                         }
