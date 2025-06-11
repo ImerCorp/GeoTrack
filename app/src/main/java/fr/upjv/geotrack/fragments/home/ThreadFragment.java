@@ -1,5 +1,6 @@
 package fr.upjv.geotrack.fragments.home;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -31,6 +32,7 @@ import java.util.List;
 
 import fr.upjv.geotrack.JourneyDetailActivity;
 import fr.upjv.geotrack.R;
+import fr.upjv.geotrack.SettingsActivity;
 import fr.upjv.geotrack.adapters.JourneyPostAdapter;
 import fr.upjv.geotrack.models.Journey;
 
@@ -209,7 +211,8 @@ public class ThreadFragment extends Fragment {
         // Hamburger menu click
         if (hamburgerMenu != null) {
             hamburgerMenu.setOnClickListener(v -> {
-                Toast.makeText(getContext(), "Menu clicked", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(getContext(), SettingsActivity.class);
+                startActivity(intent);
             });
         }
 
