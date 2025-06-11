@@ -1,23 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.upjv.geotrack">
-
     <!-- Network permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- Location permissions -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Location permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Background location permission for Android 10+ -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
-    <!-- Foreground service permissions for Android 9+ -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Background location permission for Android 10+ -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> <!-- Foreground service permissions for Android 9+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-
-    <!-- Auto-start permission -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- Auto-start permission -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -27,13 +18,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GeoTrack">
-
+        <activity
+            android:name=".FullScreenPhotoActivity"
+            android:exported="false" />
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBY-AbPmIeAtEicye_hBOHXiLTN2qHVyvg" />
-
-        <!-- Activities -->
+            android:value="AIzaSyDb9ICVQS7fDUZ8VIQ2Cu_Bj5wxzaIsP5k" />
         <activity
             android:name=".HomeActivity"
             android:exported="false" />
@@ -42,14 +33,13 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".MainActivity"
-            android:exported="false" />
-
-        <!-- Journey Activities -->
+            android:exported="false" /> <!-- Journey Activities -->
         <activity
             android:name=".JourneyDetailActivity"
             android:exported="false"
@@ -57,17 +47,13 @@
         <activity
             android:name=".CreateJourneyActivity"
             android:exported="false"
-            android:parentActivityName=".MainActivity" />
-
-        <!-- Location Service -->
+            android:parentActivityName=".MainActivity" /> <!-- Location Service -->
         <service
             android:name=".services.LocationService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
-
-        <!-- Restart Receiver -->
+            android:permission="android.permission.BIND_JOB_SERVICE" /> <!-- Restart Receiver -->
         <receiver
             android:name=".services.LocationServiceRestarter"
             android:enabled="true"
@@ -76,9 +62,10 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.PACKAGE_REPLACED" />
+
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
-
     </application>
+
 </manifest>
