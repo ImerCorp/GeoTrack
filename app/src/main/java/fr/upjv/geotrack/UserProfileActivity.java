@@ -1,5 +1,7 @@
 package fr.upjv.geotrack;
 
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -150,6 +152,12 @@ public class UserProfileActivity extends AppCompatActivity {
         );
         recyclerUserPosts.setLayoutManager(new LinearLayoutManager(this));
         recyclerUserPosts.setAdapter(postAdapter);
+    }
+
+    public static void startActivity(Context context, String userUUID) {
+        Intent intent = new Intent(context, UserProfileActivity.class);
+        intent.putExtra("USER_ID", userUUID);  // Note: This matches what you're reading in onCreate()
+        context.startActivity(intent);
     }
 
     /**

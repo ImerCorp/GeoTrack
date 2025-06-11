@@ -10,6 +10,8 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -31,12 +33,16 @@ import java.util.List;
 import fr.upjv.geotrack.JourneyDetailActivity;
 import fr.upjv.geotrack.UserProfileActivity;
 import fr.upjv.geotrack.R;
+import fr.upjv.geotrack.SettingsActivity;
 import fr.upjv.geotrack.adapters.JourneyPostAdapter;
 import fr.upjv.geotrack.models.Journey;
 
 public class ThreadFragment extends Fragment {
 
-    private ImageView hamburgerMenu, appLogo, searchIcon, profileIcon;
+    private ImageView hamburgerMenu;
+    private ImageView appLogo;
+    private ImageView searchIcon;
+    private ImageView profileIcon;
     private RecyclerView journeyRecyclerView;
     private JourneyPostAdapter journeyPostAdapter;
     private List<Journey> journeyList;
@@ -51,10 +57,19 @@ public class ThreadFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_thread, container, false);
 
+        // Initialize Firebase
         initializeFirebase();
+
+        // Initialize header components
         initializeHeader(view);
+
+        // Initialize RecyclerView for journey posts
         initializeRecyclerView(view);
+
+        // Load user profile image
         loadUserProfileImage();
+
+        // Load random journeys
         loadRandomJourneys();
 
         return view;
@@ -68,42 +83,41 @@ public class ThreadFragment extends Fragment {
     }
 
     private void initializeHeader(View view) {
+        // Find header views
         hamburgerMenu = view.findViewById(R.id.hamburger_menu);
-        appLogo        = view.findViewById(R.id.app_logo);
-        searchIcon     = view.findViewById(R.id.search_icon);
-        profileIcon    = view.findViewById(R.id.profile_icon);
+        appLogo = view.findViewById(R.id.app_logo);
+        searchIcon = view.findViewById(R.id.search_icon);
+        profileIcon = view.findViewById(R.id.profile_icon);
 
+        // Set click listeners
         setupHeaderClickListeners();
     }
 
     private void initializeRecyclerView(View view) {
         journeyRecyclerView = view.findViewById(R.id.thread_recycler_view);
-        journeyList         = new ArrayList<>();
+        journeyList = new ArrayList<>();
 
-        journeyPostAdapter = new JourneyPostAdapter(
-                journeyList,
-                getContext(),
-                new JourneyPostAdapter.OnJourneyClickListener() {
-                    @Override
-                    public void onJourneyClick(Journey journey) {
-                        Log.d(TAG, "Journey clicked: " + journey.getName());
-                        JourneyDetailActivity.startActivity(getContext(), journey);
-                    }
+        journeyPostAdapter = new JourneyPostAdapter(journeyList, getContext(), new JourneyPostAdapter.OnJourneyClickListener() {
+            @Override
+            public void onJourneyClick(Journey journey) {
+                Log.d(TAG, "Journey clicked: " + journey.getName());
+                // Navigate to JourneyDetailActivity
+                JourneyDetailActivity.startActivity(getContext(), journey);
+            }
 
-                    @Override
-                    public void onLikeClick(Journey journey, int position) {
-                        // existing like handling...
-                    }
+            @Override
+            public void onLikeClick(Journey journey, int position) {
+                // Handle like button click
+                handleLikeClick(journey, position);
+            }
 
-                    @Override
-                    public void onUserProfileClick(String userUUID) {
-                        // Navigate to UserProfileActivity
-                        Intent intent = new Intent(getContext(), UserProfileActivity.class);
-                        intent.putExtra("USER_ID", userUUID);
-                        startActivity(intent);
-                    }
-                }
-        );
+            @Override
+            public void onUserProfileClick(String userUUID) {
+                // Handle user profile click
+                Toast.makeText(getContext(), "Opening user profile", Toast.LENGTH_SHORT).show();
+                UserProfileActivity.startActivity(getContext(), userUUID);
+            }
+        });
 
         journeyRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         journeyRecyclerView.setAdapter(journeyPostAdapter);
@@ -111,82 +125,144 @@ public class ThreadFragment extends Fragment {
 
     private void loadUserProfileImage() {
         FirebaseUser currentUser = mAuth.getCurrentUser();
+
         if (currentUser != null && profileIcon != null) {
             String userId = currentUser.getUid();
             StorageReference profileImageRef = storageRef.child("users/" + userId + "/profile.jpg");
 
             profileImageRef.getDownloadUrl()
                     .addOnSuccessListener(uri -> {
-                        if (isAdded()) {
+                        if (getContext() != null && isAdded()) {
                             Glide.with(this)
                                     .load(uri)
-                                    .transform(new MultiTransformation<>(new CenterCrop(), new CircleCrop()))
+                                    .transform(
+                                            new MultiTransformation<>(
+                                                    new CenterCrop(),
+                                                    new CircleCrop()
+                                            )
+                                    )
                                     .placeholder(R.drawable.ic_profile_modern)
                                     .error(R.drawable.ic_profile_modern)
                                     .into(profileIcon);
                         }
                     })
-                    .addOnFailureListener(e -> {
-                        if (isAdded()) {
+                    .addOnFailureListener(exception -> {
+                        if (getContext() != null && isAdded()) {
                             Glide.with(this)
                                     .load(R.drawable.ic_profile_modern)
                                     .into(profileIcon);
                         }
                     });
-        } else if (profileIcon != null) {
-            profileIcon.setImageResource(R.drawable.ic_profile_modern);
+        } else {
+            if (profileIcon != null) {
+                profileIcon.setImageResource(R.drawable.ic_profile_modern);
+            }
         }
     }
 
     private void loadRandomJourneys() {
         db.collection("journey")
                 .orderBy("start", Query.Direction.DESCENDING)
-                .limit(20)
+                .limit(20) // Limit to 20 recent journeys
                 .get()
                 .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && isAdded()) {
+                    if (task.isSuccessful() && getContext() != null) {
                         journeyList.clear();
                         for (QueryDocumentSnapshot document : task.getResult()) {
-                            Journey journey = document.toObject(Journey.class);
-                            if (journey != null && journey.isValid()) {
-                                journeyList.add(journey);
+                            try {
+                                Journey journey = document.toObject(Journey.class);
+                                if (journey != null && journey.isValid()) {
+                                    journeyList.add(journey);
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
                         }
-                        journeyPostAdapter.notifyDataSetChanged();
+
+                        if (journeyPostAdapter != null) {
+                            journeyPostAdapter.notifyDataSetChanged();
+                        }
+
                         if (journeyList.isEmpty()) {
+                            // Show empty state
                             Toast.makeText(getContext(), "No journeys found", Toast.LENGTH_SHORT).show();
                         }
-                    } else if (isAdded()) {
+                    } else {
                         Toast.makeText(getContext(), "Failed to load journeys", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
-                    if (isAdded()) {
+                    if (getContext() != null) {
                         Toast.makeText(getContext(), "Error loading journeys: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
+    private void handleLikeClick(Journey journey, int position) {
+        // TODO: Implement like functionality
+        // This would typically involve updating the journey's like count in Firestore
+        // and updating the UI accordingly
+        Toast.makeText(getContext(), "Liked journey: " + journey.getName(), Toast.LENGTH_SHORT).show();
+
+        // Example implementation:
+        // updateJourneyLikes(journey.getId(), true);
+    }
+
     private void setupHeaderClickListeners() {
+        // Hamburger menu click
         if (hamburgerMenu != null) {
-            hamburgerMenu.setOnClickListener(v ->
-                    Toast.makeText(getContext(), "Menu clicked", Toast.LENGTH_SHORT).show()
-            );
+            hamburgerMenu.setOnClickListener(v -> {
+                Intent intent = new Intent(getContext(), SettingsActivity.class);
+                startActivity(intent);
+            });
         }
+
+        // App logo click
         if (appLogo != null) {
-            appLogo.setOnClickListener(v ->
-                    Toast.makeText(getContext(), "Logo clicked", Toast.LENGTH_SHORT).show()
-            );
+            appLogo.setOnClickListener(v -> {
+                Toast.makeText(getContext(), "Logo clicked", Toast.LENGTH_SHORT).show();
+            });
         }
+
+        // Search icon click
         if (searchIcon != null) {
-            searchIcon.setOnClickListener(v ->
-                    Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show()
-            );
+            searchIcon.setOnClickListener(v -> {
+                Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show();
+            });
         }
+
+        // Profile icon click - Navigate to ProfileFragment
         if (profileIcon != null) {
-            profileIcon.setOnClickListener(v ->
-                    Toast.makeText(getContext(), "Profile header clicked", Toast.LENGTH_SHORT).show()
-            );
+            profileIcon.setOnClickListener(v -> {
+                navigateToProfileFragment();
+            });
         }
+    }
+
+    private void navigateToProfileFragment() {
+        try {
+            FragmentManager fragmentManager = getParentFragmentManager();
+            FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+            ProfileFragment profileFragment = new ProfileFragment();
+            transaction.replace(R.id.fragment_container, profileFragment);
+            transaction.addToBackStack("ThreadFragment");
+            transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+            transaction.commit();
+
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Opening Profile", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+
+    // Method to refresh profile image (call this when user updates their profile)
+    public void refreshProfileImage() {
+        loadUserProfileImage();
+    }
+
+    // Method to refresh journey posts
+    public void refreshJourneyPosts() {
+        loadRandomJourneys();
     }
 }
