@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 1) Image de profil -->
+    <ImageView
+        android:id="@+id/image_profile"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/ic_profile_modern"
+        android:contentDescription="@string/profile_picture" />
+
+    <!-- 2) Nom d’utilisateur -->
+    <TextView
+        android:id="@+id/text_username"
+        android:layout_marginTop="8dp"
+        android:text="Username"
+        android:textSize="20sp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- 3) Bouton Follow/Unfollow -->
+    <Button
+        android:id="@+id/button_follow"
+        android:layout_marginTop="8dp"
+        android:text="Follow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Séparateur -->
+    <View
+        android:layout_marginTop="16dp"
+        android:layout_height="1dp"
+        android:background="#CCC"
+        android:layout_width="match_parent" />
+
+    <!-- 4) RecyclerView pour les posts -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_user_posts"
+        android:layout_marginTop="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>
