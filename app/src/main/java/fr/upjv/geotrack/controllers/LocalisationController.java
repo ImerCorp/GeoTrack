@@ -14,6 +14,7 @@ import java.util.List;
 public class LocalisationController {
     private static final String TAG = "LocalisationController";
     private String collectionName = "localisation";
+    private String currentLocationCollectionName = "updateUserCurrentLocation";
     private FirebaseFirestore DBFireStore;
 
     public LocalisationController(){
@@ -33,6 +34,27 @@ public class LocalisationController {
                     Log.e(TAG, "Failed to save location to Firestore", e);
                 });
     }
+
+    /**
+     * Updates the current location of a user in a dedicated collection
+     * This method continuously updates the last known position for real-time tracking
+     * @param localisation The current location data to update
+     * @param TAG Tag for logging purposes
+     */
+    public void updateUserCurrentLocation(Localisation localisation, String TAG) {
+        // Update current location using userUUID as document ID
+        DBFireStore
+                .collection(this.currentLocationCollectionName)
+                .document(localisation.getUserUUID()) // Use userUUID as document ID
+                .set(localisation.toJson())
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Current location updated successfully for user: " + localisation.getUserUUID());
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to update current location for user: " + localisation.getUserUUID(), e);
+                });
+    }
+
     /**
      * Get localizations within a journey's time period with approximately 15-minute intervals
      * @param journey The journey to get localizations for
