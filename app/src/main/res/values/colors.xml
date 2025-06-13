@@ -23,4 +23,16 @@
     <color name="gray_light">#F5F5F5</color>
     <color name="gray_medium">#CCCCCC</color>
     <color name="gray_dark">#666666</color>
+
+    <!-- Follow Button Colors -->
+    <color name="follow_button_color">#2196F3</color>
+    <color name="follow_button_ripple">#1976D2</color>
+
+    <!-- Following Button Colors (when already following) -->
+    <color name="following_button_color">#4CAF50</color>
+    <color name="following_button_ripple">#388E3C</color>
+
+    <!-- Message Button Colors -->
+    <color name="message_button_color">#FF5722</color>
+    <color name="message_button_ripple">#D84315</color>
 </resources>

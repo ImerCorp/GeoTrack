@@ -1,47 +1,180 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/swipe_refresh_layout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
 
-    <!-- 1) Image de profil -->
-    <ImageView
-        android:id="@+id/image_profile"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:src="@drawable/ic_profile_modern"
-        android:contentDescription="@string/profile_picture" />
-
-    <!-- 2) Nom d’utilisateur -->
-    <TextView
-        android:id="@+id/text_username"
-        android:layout_marginTop="8dp"
-        android:text="Username"
-        android:textSize="20sp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <!-- 3) Bouton Follow/Unfollow -->
-    <Button
-        android:id="@+id/button_follow"
-        android:layout_marginTop="8dp"
-        android:text="Follow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <!-- Séparateur -->
-    <View
-        android:layout_marginTop="16dp"
-        android:layout_height="1dp"
-        android:background="#CCC"
-        android:layout_width="match_parent" />
-
-    <!-- 4) RecyclerView pour les posts -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_user_posts"
-        android:layout_marginTop="8dp"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
-</LinearLayout>
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Header Section with Back Button and Profile Info -->
+            <LinearLayout
+                android:id="@+id/header_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/profile_header_gradient"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Back Button Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="start|center_vertical">
+
+                    <ImageButton
+                        android:id="@+id/back_button"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_arrow_back"
+                        android:contentDescription="Go back"
+                        android:padding="6dp" />
+
+                </LinearLayout>
+
+                <!-- Profile Content -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <!-- Profile Image (Read-only) -->
+                    <FrameLayout
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        android:layout_marginBottom="12dp">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            app:cardCornerRadius="35dp"
+                            app:cardElevation="4dp">
+
+                            <ImageView
+                                android:id="@+id/image_profile"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/ic_profile_modern"
+                                tools:src="@drawable/ic_profile_modern" />
+
+                        </androidx.cardview.widget.CardView>
+
+                    </FrameLayout>
+
+                    <!-- Display Name -->
+                    <TextView
+                        android:id="@+id/text_username"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="4dp"
+                        android:textColor="@android:color/white"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        tools:text="Jane Smith" />
+
+                    <!-- Email Address -->
+                    <TextView
+                        android:id="@+id/email_address"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="2dp"
+                        android:textColor="@android:color/white"
+                        android:textSize="13sp"
+                        android:alpha="0.9"
+                        android:gravity="center"
+                        tools:text="jane.smith@example.com" />
+
+                    <!-- Member Since -->
+                    <TextView
+                        android:id="@+id/member_since"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:textColor="@android:color/white"
+                        android:textSize="11sp"
+                        android:alpha="0.8"
+                        android:gravity="center"
+                        tools:text="Member since March 2024" />
+
+                    <!-- Journey Count and Follow Button in horizontal layout -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp">
+
+                        <!-- Journey Count -->
+                        <TextView
+                            android:id="@+id/journey_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="12dp"
+                            android:background="@drawable/rounded_white_background"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="3dp"
+                            android:textColor="@color/primary_color"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            tools:text="8 journeys" />
+
+                        <!-- Follow Button -->
+                        <Button
+                            android:id="@+id/button_follow"
+                            android:layout_width="120dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/button_follow"
+                            android:text="@string/follow"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:elevation="2dp"
+                            tools:text="Follow" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Journey Posts Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@color/gray_light"
+                android:orientation="vertical">
+
+                <!-- RecyclerView for journey posts -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/thread_recycler_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@android:layout/simple_list_item_1" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -240,7 +240,6 @@ public class JourneyController {
         return DBFireStore
                 .collection(this.collectionName)
                 .whereEqualTo("userUUID", userUUID)
-                .orderBy("start", Query.Direction.DESCENDING)
                 .get();
     }
 
