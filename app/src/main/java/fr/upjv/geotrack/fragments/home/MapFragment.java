@@ -72,6 +72,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
     // Location Controller
     private CurrentLocationController locationController;
 
+    // Tracking state
+    private boolean isTrackingEnabled = false;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
@@ -108,7 +111,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
             refreshMap();
             Toast.makeText(getContext(), "Refreshing map...", Toast.LENGTH_SHORT).show();
         });
-        searchIcon.setOnClickListener(v -> Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show());
+        searchIcon.setOnClickListener(v -> toggleLocationTracking());
         profileIcon.setOnClickListener(v -> navigateToProfileFragment());
     }
 
@@ -149,11 +152,16 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
     }
 
     private void loadFollowingUsers() {
+        Log.d(TAG, "Loading following users...");
+
         new FollowController().getFollowingUserIds(new FollowController.FollowingUsersCallback() {
             @Override
             public void onSuccess(List<String> followingUserIds) {
+                Log.d(TAG, "Retrieved " + followingUserIds.size() + " following user IDs");
+
                 if (followingUserIds.isEmpty()) {
                     Log.d(TAG, "Not following anyone");
+                    Toast.makeText(getContext(), "You're not following anyone yet", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
@@ -162,18 +170,24 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
                         new UserController.MultipleUsersCallback() {
                             @Override
                             public void onSuccess(List<User> users) {
+                                Log.d(TAG, "Successfully loaded " + users.size() + " user details");
+
                                 followingUsers.clear();
                                 followingUsers.addAll(users);
 
                                 // Start location tracking for all following users
-                                locationController.startLocationListening(followingUserIds);
-                                Log.d(TAG, "Started tracking " + users.size() + " users");
+                                startLocationTracking(followingUserIds);
+
+                                // Show success message
+                                Toast.makeText(getContext(),
+                                        "Now tracking " + users.size() + " users",
+                                        Toast.LENGTH_SHORT).show();
                             }
 
                             @Override
                             public void onFailure(String error) {
                                 Log.e(TAG, "Error loading users: " + error);
-                                Toast.makeText(getContext(), "Error loading users", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getContext(), "Error loading users: " + error, Toast.LENGTH_SHORT).show();
                             }
 
                             @Override
@@ -186,14 +200,93 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
             @Override
             public void onFailure(String error) {
                 Log.e(TAG, "Error loading following list: " + error);
-                Toast.makeText(getContext(), "Error loading following list", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Error loading following list: " + error, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // Implementation of CurrentLocationController.LocationUpdateCallback
+    private void startLocationTracking(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            Log.d(TAG, "No users to track");
+            return;
+        }
+
+        Log.d(TAG, "Starting location tracking for " + userIds.size() + " users");
+
+        // Show loading message
+        Toast.makeText(getContext(), "Loading current locations...", Toast.LENGTH_SHORT).show();
+
+        // This will now load initial positions first, then set up real-time tracking
+        locationController.startLocationListening(userIds);
+        isTrackingEnabled = true;
+
+        // Update search icon to indicate tracking is active
+        updateTrackingIcon();
+    }
+
+    @Override
+    public void onInitialLocationsLoaded(int loadedCount, int totalCount) {
+        Log.d(TAG, "Initial locations loaded: " + loadedCount + "/" + totalCount);
+        if (getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                String message;
+                if (loadedCount == totalCount && loadedCount > 0) {
+                    message = "Loaded " + loadedCount + " current locations";
+                } else if (loadedCount > 0) {
+                    message = "Loaded " + loadedCount + "/" + totalCount + " locations";
+                } else {
+                    message = "No current locations found";
+                }
+
+                Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+
+                // Optionally center the map on all loaded locations
+                if (loadedCount > 0) {
+                    centerOnAllUsers();
+                }
+            });
+        }
+    }
+
+    private void stopLocationTracking() {
+        Log.d(TAG, "Stopping location tracking");
+        locationController.stopLocationListening();
+        clearMarkers();
+        isTrackingEnabled = false;
+
+        // Update search icon to indicate tracking is inactive
+        updateTrackingIcon();
+
+        Toast.makeText(getContext(), "Location tracking stopped", Toast.LENGTH_SHORT).show();
+    }
+
+    private void toggleLocationTracking() {
+        if (isTrackingEnabled) {
+            stopLocationTracking();
+        } else {
+            if (!followingUsers.isEmpty()) {
+                List<String> userIds = new ArrayList<>();
+                for (User user : followingUsers) {
+                    userIds.add(user.getUid());
+                }
+                startLocationTracking(userIds);
+            } else {
+                loadFollowingUsers(); // This will start tracking if users are found
+            }
+        }
+    }
+
+    private void updateTrackingIcon() {
+        // You can change the search icon based on tracking state
+        // For example, use different drawable resources or tint colors
+        if (searchIcon != null) {
+            searchIcon.setAlpha(isTrackingEnabled ? 1.0f : 0.5f);
+        }
+    }
+
     @Override
     public void onLocationUpdated(String userId, Localisation location) {
+        Log.d(TAG, "Location updated for user: " + userId);
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> updateUserMarker(userId, location));
         }
@@ -201,6 +294,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
 
     @Override
     public void onLocationRemoved(String userId) {
+        Log.d(TAG, "Location removed for user: " + userId);
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> removeUserMarker(userId));
         }
@@ -217,10 +311,16 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
     }
 
     private void updateUserMarker(String userId, Localisation location) {
-        if (googleMap == null) return;
+        if (googleMap == null) {
+            Log.w(TAG, "GoogleMap is null, cannot update marker");
+            return;
+        }
 
         User user = findUserById(userId);
-        if (user == null) return;
+        if (user == null) {
+            Log.w(TAG, "User not found for ID: " + userId);
+            return;
+        }
 
         LatLng position = new LatLng(location.getLatitude(), location.getLongitude());
 
@@ -246,9 +346,10 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
                 .icon(BitmapDescriptorFactory.defaultMarker(markerColor));
 
         Marker marker = googleMap.addMarker(markerOptions);
-        userMarkers.put(userId, marker);
-
-        Log.d(TAG, "Updated marker for " + title + " at " + position);
+        if (marker != null) {
+            userMarkers.put(userId, marker);
+            Log.d(TAG, "Updated marker for " + title + " at " + position);
+        }
     }
 
     private String createLocationSnippet(Localisation location, String userId) {
@@ -352,6 +453,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
         userMarkers.clear();
     }
 
+
     private void showUserLocationInfo(String userId) {
         User user = findUserById(userId);
         if (user == null) return;
@@ -362,10 +464,11 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
             return;
         }
 
-        String message = String.format("%s\nLast seen: %s\nAccuracy: %s",
+        String freshness = locationController.isLocationRecent(userId, LOCATION_FRESHNESS_MINUTES) ? "Recent" : "Stale";
+        String message = String.format("%s\nLast seen: %s\nStatus: %s",
                 user.getDisplayNameOrEmail(),
                 getTimeAgo(location.getTimestamp()),
-                locationController.isLocationRecent(userId, LOCATION_FRESHNESS_MINUTES) ? "Recent" : "Stale"
+                freshness
         );
 
         Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
@@ -465,8 +568,8 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
         if (mapView != null) {
             mapView.onResume();
         }
-        // Resume location tracking if we have users to track
-        if (!followingUsers.isEmpty()) {
+        // Resume location tracking if we have users to track and tracking was enabled
+        if (isTrackingEnabled && !followingUsers.isEmpty()) {
             List<String> userIds = new ArrayList<>();
             for (User user : followingUsers) {
                 userIds.add(user.getUid());
@@ -481,6 +584,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
         if (mapView != null) {
             mapView.onPause();
         }
+        // Keep tracking active in background - only stop on destroy
     }
 
     @Override
@@ -543,12 +647,17 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, Current
         centerOnAllUsers();
     }
 
+    public boolean isLocationTrackingActive() {
+        return isTrackingEnabled;
+    }
+
     // Get location statistics
     public String getLocationStats() {
         if (locationController == null) return "Location controller not initialized";
 
-        return String.format("Tracking %d users, %d active listeners",
+        return String.format("Tracking %d users, %d active listeners, Status: %s",
                 locationController.getTrackedUserCount(),
-                locationController.getActiveListenerCount());
+                locationController.getActiveListenerCount(),
+                isTrackingEnabled ? "Active" : "Inactive");
     }
 }
