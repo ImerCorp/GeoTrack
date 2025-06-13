@@ -1,5 +1,6 @@
 package fr.upjv.geotrack;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -45,6 +46,7 @@ public class UserProfileActivity extends AppCompatActivity {
     private final List<Journey> userPosts = new ArrayList<>();
     private JourneyPostAdapter postAdapter;
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
