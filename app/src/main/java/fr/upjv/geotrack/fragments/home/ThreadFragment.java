@@ -34,6 +34,7 @@ import fr.upjv.geotrack.JourneyDetailActivity;
 import fr.upjv.geotrack.UserProfileActivity;
 import fr.upjv.geotrack.R;
 import fr.upjv.geotrack.SettingsActivity;
+import fr.upjv.geotrack.SearchUsersActivity;
 import fr.upjv.geotrack.adapters.JourneyPostAdapter;
 import fr.upjv.geotrack.models.Journey;
 
@@ -227,7 +228,8 @@ public class ThreadFragment extends Fragment {
         // Search icon click
         if (searchIcon != null) {
             searchIcon.setOnClickListener(v -> {
-                Toast.makeText(getContext(), "Search clicked", Toast.LENGTH_SHORT).show();
+                // Lance la SearchUsersActivity
+                SearchUsersActivity.startActivity(getContext()); // MODIFICATION ICI
             });
         }
 

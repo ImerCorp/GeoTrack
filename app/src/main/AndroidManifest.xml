@@ -89,6 +89,12 @@
             android:foregroundServiceType="location"
             android:permission="android.permission.FOREGROUND_SERVICE" />
 
+        <!-- Déclaration de SearchUsersActivity -->
+        <activity android:name=".SearchUsersActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Receiver to restart service after reboot/update -->
         <receiver
             android:name=".services.LocationServiceRestarter"

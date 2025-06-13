@@ -6,4 +6,5 @@
     <string name="unfollow" />
     <string name="follow" />
     <string name="unknown" />
+    <string name="username">username</string>
 </resources>
