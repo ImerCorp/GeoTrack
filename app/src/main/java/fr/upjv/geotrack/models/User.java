@@ -6,8 +6,9 @@ public class User {
     private String uid;
     private String email;
     private String displayName;
-    private String profilePicturePath; // New field for profile picture storage path
-    private String profilePictureUrl; // New field for profile picture URL (for caching/display)
+    private String displayNameLower; // version en minuscules du displayName pour que ça soit insensible à la casse
+    private String profilePicturePath;
+    private String profilePictureUrl;
 
     public User() {
         // Required empty constructor for Firestore
@@ -16,7 +17,7 @@ public class User {
     public User(String uid, String email, String displayName) {
         this.uid = uid;
         this.email = email;
-        this.displayName = displayName;
+        this.setDisplayName(displayName);
         this.profilePicturePath = null;
         this.profilePictureUrl = null;
     }
@@ -24,7 +25,7 @@ public class User {
     public User(String uid, String email) {
         this.uid = uid;
         this.email = email;
-        this.displayName = email; // Use email as display name if no display name
+        this.setDisplayName(email);
         this.profilePicturePath = null;
         this.profilePictureUrl = null;
     }
@@ -33,7 +34,7 @@ public class User {
     public User(String uid, String email, String displayName, String profilePicturePath, String profilePictureUrl) {
         this.uid = uid;
         this.email = email;
-        this.displayName = displayName;
+        this.setDisplayName(displayName);
         this.profilePicturePath = profilePicturePath;
         this.profilePictureUrl = profilePictureUrl;
     }
@@ -61,6 +62,12 @@ public class User {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+        // Met à jour automatiquement displayNameLower quand displayName est modifié
+        this.displayNameLower = (displayName != null) ? displayName.toLowerCase() : null;
+    }
+
+    public String getDisplayNameLower() {
+        return displayNameLower;
     }
 
     public String getProfilePicturePath() {
@@ -79,7 +86,7 @@ public class User {
         this.profilePictureUrl = profilePictureUrl;
     }
 
-    // Profile picture utility methods
+    // Profile picture utility
 
     /**
      * Generate storage path for profile picture
@@ -164,6 +171,7 @@ public class User {
         hash.put("uid", this.uid);
         hash.put("email", this.email);
         hash.put("displayName", this.displayName);
+        hash.put("displayNameLower", this.displayNameLower);
         hash.put("profilePicturePath", this.profilePicturePath);
         hash.put("profilePictureUrl", this.profilePictureUrl);
         return hash;
@@ -175,6 +183,7 @@ public class User {
                 "uid='" + uid + '\'' +
                 ", email='" + email + '\'' +
                 ", displayName='" + displayName + '\'' +
+                ", displayNameLower='" + displayNameLower + '\'' +
                 ", hasProfilePicture=" + hasProfilePicture() +
                 '}';
     }
