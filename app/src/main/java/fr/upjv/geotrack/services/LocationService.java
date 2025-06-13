@@ -37,7 +37,7 @@ public class LocationService extends Service {
     private static final int NOTIFICATION_ID = 1001;
     private static final String CHANNEL_ID = "LocationServiceChannel";
     private static final String TAG = "LocationService";
-    private static final int DEFAULT_INTERVAL_MS = 2000; // Default 2 seconds
+    private static final int DEFAULT_INTERVAL_MS = 30 * 60 * 1000; // Default 2 seconds
 
     // Binder for bound service
     private final IBinder binder = new LocationBinder();
