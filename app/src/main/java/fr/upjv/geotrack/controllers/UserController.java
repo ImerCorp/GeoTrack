@@ -15,7 +15,9 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import fr.upjv.geotrack.models.User;
@@ -276,6 +278,174 @@ public class UserController {
                 })
                 .addOnFailureListener(e -> {
                     callback.onFailure("Error checking user existence: " + e.getMessage());
+                });
+    }
+
+    // Add these methods to your UserController class
+
+    /**
+     * Interface for callbacks when fetching multiple users
+     */
+    public interface MultipleUsersCallback {
+        void onSuccess(List<User> users);
+        void onFailure(String error);
+        void onProgress(int current, int total); // Optional: for progress tracking
+    }
+
+    /**
+     * Get multiple users by their UIDs
+     */
+    public void getMultipleUsers(List<String> userIds, MultipleUsersCallback callback) {
+        if (userIds == null || userIds.isEmpty()) {
+            callback.onSuccess(new ArrayList<>());
+            return;
+        }
+
+        List<User> users = new ArrayList<>();
+        int[] completedRequests = {0}; // Using array to make it effectively final
+        int totalRequests = userIds.size();
+
+        for (String uid : userIds) {
+            getUser(uid, new UserCallback() {
+                @Override
+                public void onSuccess(User user) {
+                    synchronized (users) {
+                        users.add(user);
+                        completedRequests[0]++;
+
+                        // Call progress callback
+                        callback.onProgress(completedRequests[0], totalRequests);
+
+                        // If all requests completed, return results
+                        if (completedRequests[0] == totalRequests) {
+                            callback.onSuccess(users);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(String error) {
+                    synchronized (users) {
+                        completedRequests[0]++;
+                        Log.e(TAG, "Failed to get user " + uid + ": " + error);
+
+                        // Call progress callback
+                        callback.onProgress(completedRequests[0], totalRequests);
+
+                        // Continue even if some users fail to load
+                        if (completedRequests[0] == totalRequests) {
+                            callback.onSuccess(users);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Get multiple users by their UIDs using batch query (more efficient for large lists)
+     */
+    public void getMultipleUsersBatch(List<String> userIds, MultipleUsersCallback callback) {
+        if (userIds == null || userIds.isEmpty()) {
+            callback.onSuccess(new ArrayList<>());
+            return;
+        }
+
+        // Firestore 'in' queries are limited to 10 items, so we need to batch them
+        final int BATCH_SIZE = 10;
+        List<User> allUsers = new ArrayList<>();
+        int[] completedBatches = {0};
+        int totalBatches = (int) Math.ceil((double) userIds.size() / BATCH_SIZE);
+
+        for (int i = 0; i < userIds.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, userIds.size());
+            List<String> batch = userIds.subList(i, endIndex);
+
+            DBFireStore.collection(collectionName)
+                    .whereIn("uid", batch)
+                    .get()
+                    .addOnSuccessListener(querySnapshot -> {
+                        synchronized (allUsers) {
+                            for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                                try {
+                                    User user = new User();
+                                    user.setUid(doc.getString("uid"));
+                                    user.setEmail(doc.getString("email"));
+                                    user.setDisplayName(doc.getString("displayName"));
+                                    user.setProfilePicturePath(doc.getString("profilePicturePath"));
+                                    user.setProfilePictureUrl(doc.getString("profilePictureUrl"));
+                                    allUsers.add(user);
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error parsing user data for document: " + doc.getId(), e);
+                                }
+                            }
+
+                            completedBatches[0]++;
+                            callback.onProgress(completedBatches[0], totalBatches);
+
+                            if (completedBatches[0] == totalBatches) {
+                                callback.onSuccess(allUsers);
+                            }
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        synchronized (allUsers) {
+                            completedBatches[0]++;
+                            Log.e(TAG, "Error getting batch of users: " + e.getMessage());
+
+                            callback.onProgress(completedBatches[0], totalBatches);
+
+                            if (completedBatches[0] == totalBatches) {
+                                callback.onSuccess(allUsers);
+                            }
+                        }
+                    });
+        }
+    }
+
+    /**
+     * Search users by display name or email (useful for finding users to follow)
+     */
+    public void searchUsers(String searchQuery, MultipleUsersCallback callback) {
+        if (searchQuery == null || searchQuery.trim().isEmpty()) {
+            callback.onSuccess(new ArrayList<>());
+            return;
+        }
+
+        String query = searchQuery.toLowerCase().trim();
+
+        DBFireStore.collection(collectionName)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<User> matchingUsers = new ArrayList<>();
+
+                    for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                        try {
+                            String email = doc.getString("email");
+                            String displayName = doc.getString("displayName");
+
+                            // Check if query matches email or display name
+                            boolean emailMatch = email != null && email.toLowerCase().contains(query);
+                            boolean nameMatch = displayName != null && displayName.toLowerCase().contains(query);
+
+                            if (emailMatch || nameMatch) {
+                                User user = new User();
+                                user.setUid(doc.getString("uid"));
+                                user.setEmail(email);
+                                user.setDisplayName(displayName);
+                                user.setProfilePicturePath(doc.getString("profilePicturePath"));
+                                user.setProfilePictureUrl(doc.getString("profilePictureUrl"));
+                                matchingUsers.add(user);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error parsing user data during search: " + e.getMessage());
+                        }
+                    }
+
+                    callback.onSuccess(matchingUsers);
+                })
+                .addOnFailureListener(e -> {
+                    callback.onFailure("Error searching users: " + e.getMessage());
                 });
     }
 }

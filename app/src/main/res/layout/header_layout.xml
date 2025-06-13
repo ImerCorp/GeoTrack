@@ -38,8 +38,10 @@
             android:id="@+id/app_logo"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@mipmap/ic_launcher"
-            android:contentDescription="GeoTrack Logo" />
+            android:src="@drawable/geotrack_logo"
+            android:contentDescription="GeoTrack Logo"
+            android:background="@android:color/transparent"
+            android:scaleType="fitCenter" />
 
         <TextView
             android:id="@+id/app_name"
