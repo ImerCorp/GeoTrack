@@ -3,7 +3,7 @@ package fr.upjv.geotrack.controllers;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
-import android.widget.Toast;
+import android.widget.Toast; // Import not used in this specific modification but kept for context
 
 import androidx.annotation.NonNull;
 
@@ -88,6 +88,9 @@ public class UserController {
 
     /**
      * Get user by UID
+     * Note: Using documentSnapshot.toObject(User.class) is generally safer and cleaner
+     * than manual parsing if the class structure matches Firestore documents exactly.
+     * Manual parsing is used here as per existing code.
      */
     public void getUser(String uid, UserCallback callback) {
         DBFireStore.collection(collectionName)
@@ -102,6 +105,7 @@ public class UserController {
                             user.setDisplayName(documentSnapshot.getString("displayName"));
                             user.setProfilePicturePath(documentSnapshot.getString("profilePicturePath"));
                             user.setProfilePictureUrl(documentSnapshot.getString("profilePictureUrl"));
+
 
                             callback.onSuccess(user);
                         } catch (Exception e) {
@@ -246,6 +250,7 @@ public class UserController {
     public void updateDisplayName(String uid, String displayName, UserCallback callback) {
         Map<String, Object> updates = new HashMap<>();
         updates.put("displayName", displayName);
+        updates.put("displayNameLower", displayName.toLowerCase());
 
         DBFireStore.collection(collectionName)
                 .document(uid)
