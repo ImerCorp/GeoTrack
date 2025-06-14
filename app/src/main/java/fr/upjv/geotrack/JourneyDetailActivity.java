@@ -1,6 +1,8 @@
 package fr.upjv.geotrack;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -13,7 +15,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -47,6 +52,7 @@ import fr.upjv.geotrack.controllers.LocalisationController;
 import fr.upjv.geotrack.models.Journey;
 import fr.upjv.geotrack.models.User;
 import fr.upjv.geotrack.models.Localisation;
+import fr.upjv.geotrack.utils.GPXExporter;
 
 public class JourneyDetailActivity extends AppCompatActivity implements PhotoSliderAdapter.OnPhotoClickListener, PhotoSliderAdapter.OnPhotoChangeListener, OnMapReadyCallback {
 
@@ -85,8 +91,10 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
     private LinearLayout mapControls;
     private ImageButton btnCenterMap;
     private ImageButton btnFullscreenMap;
+    private ImageButton btnExportJourney;
 
     // Data
+    private static final int PERMISSION_REQUEST_WRITE_STORAGE = 1001;
     private Journey journey;
     private UserController userController;
     private LocalisationController localisationController;
@@ -143,6 +151,8 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         mapControls = findViewById(R.id.map_controls);
         btnCenterMap = findViewById(R.id.btn_center_map);
         btnFullscreenMap = findViewById(R.id.btn_fullscreen_map);
+
+        btnExportJourney = findViewById(R.id.btn_export_journey);
 
         setupPhotosRecyclerView();
         setupMapControls();
@@ -680,7 +690,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         } else {
             journeyDuration.setText(durationDays + " days");
         }
-
+        setupExportButton();
         setJourneyStatus();
     }
 
@@ -720,5 +730,117 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         intent.putExtra(EXTRA_JOURNEY_END_DATE, journey.getEnd().getTime());
         intent.putExtra(EXTRA_JOURNEY_USER_UUID, journey.getUserUUID());
         context.startActivity(intent);
+    }
+
+    private void setupExportButton() {
+        if (btnExportJourney != null) {
+            btnExportJourney.setOnClickListener(v -> showExportDialog());
+        }
+    }
+
+    private void showExportDialog() {
+        if (journeyLocalisations.isEmpty()) {
+            Toast.makeText(this, "No location data to export", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Export Journey")
+                .setMessage("Choose the export format for your journey:")
+                .setPositiveButton("GPX Format", (dialog, which) -> checkPermissionAndExport("gpx"))
+                .setNegativeButton("KML Format", (dialog, which) -> checkPermissionAndExport("kml"))
+                .setNeutralButton("Cancel", null)
+                .show();
+    }
+
+    private void checkPermissionAndExport(String format) {
+        // For Android 10 (API 29) and above, we don't need WRITE_EXTERNAL_STORAGE permission
+        // for writing to the Downloads directory
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            performExport(format);
+        } else {
+            // For older versions, check permission
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                // Store the format for later use
+                pendingExportFormat = format;
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        PERMISSION_REQUEST_WRITE_STORAGE);
+            } else {
+                performExport(format);
+            }
+        }
+    }
+
+    // Add this field to store the pending export format
+    private String pendingExportFormat;
+
+    private void performExport(String format) {
+        if (journey == null || journeyLocalisations.isEmpty()) {
+            Toast.makeText(this, "No data to export", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show progress dialog
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+                .setTitle("Exporting Journey")
+                .setMessage("Please wait while we export your journey...")
+                .setCancelable(false)
+                .create();
+        progressDialog.show();
+
+        // Perform export in background thread
+        new Thread(() -> {
+            GPXExporter.ExportResult result;
+
+            if ("gpx".equals(format)) {
+                result = GPXExporter.exportToGPX(this, journey, journeyLocalisations);
+            } else {
+                result = GPXExporter.exportToKML(this, journey, journeyLocalisations);
+            }
+
+            // Return to main thread to show result
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+                showExportResult(result, format.toUpperCase());
+            });
+        }).start();
+    }
+
+    private void showExportResult(GPXExporter.ExportResult result, String format) {
+        if (result.success) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Export Successful")
+                    .setMessage("Your journey has been exported as " + format + " format.\n\nSaved to: Downloads/" +
+                            new java.io.File(result.filePath).getName())
+                    .setPositiveButton("OK", null)
+                    .show();
+
+            Toast.makeText(this, format + " file saved to Downloads", Toast.LENGTH_LONG).show();
+        } else {
+            new AlertDialog.Builder(this)
+                    .setTitle("Export Failed")
+                    .setMessage("Failed to export journey: " + result.errorMessage)
+                    .setPositiveButton("OK", null)
+                    .show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == PERMISSION_REQUEST_WRITE_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (pendingExportFormat != null) {
+                    performExport(pendingExportFormat);
+                    pendingExportFormat = null;
+                }
+            } else {
+                Toast.makeText(this, "Storage permission is required to export files", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
