@@ -92,6 +92,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
     private ImageButton btnCenterMap;
     private ImageButton btnFullscreenMap;
     private ImageButton btnExportJourney;
+    private ImageButton btnShareJourney;
 
     // Data
     private static final int PERMISSION_REQUEST_WRITE_STORAGE = 1001;
@@ -153,6 +154,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         btnFullscreenMap = findViewById(R.id.btn_fullscreen_map);
 
         btnExportJourney = findViewById(R.id.btn_export_journey);
+        btnShareJourney = findViewById(R.id.btn_share_journey);
 
         setupPhotosRecyclerView();
         setupMapControls();
@@ -690,7 +692,7 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         } else {
             journeyDuration.setText(durationDays + " days");
         }
-        setupExportButton();
+        setupExportAndShareButtons();
         setJourneyStatus();
     }
 
@@ -732,9 +734,13 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
         context.startActivity(intent);
     }
 
-    private void setupExportButton() {
+    private void setupExportAndShareButtons() {
         if (btnExportJourney != null) {
             btnExportJourney.setOnClickListener(v -> showExportDialog());
+        }
+
+        if (btnShareJourney != null) {
+            btnShareJourney.setOnClickListener(v -> showShareDialog());
         }
     }
 
@@ -842,5 +848,150 @@ public class JourneyDetailActivity extends AppCompatActivity implements PhotoSli
                 Toast.makeText(this, "Storage permission is required to export files", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private void showShareDialog() {
+        if (journeyLocalisations.isEmpty()) {
+            Toast.makeText(this, "No location data to share", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Share Journey")
+                .setMessage("Choose the format to share your journey:")
+                .setPositiveButton("Share GPX", (dialog, which) -> shareJourney("gpx"))
+                .setNegativeButton("Share KML", (dialog, which) -> shareJourney("kml"))
+                .setNeutralButton("Cancel", null)
+                .show();
+    }
+
+    private void shareJourney(String format) {
+        if (journey == null || journeyLocalisations.isEmpty()) {
+            Toast.makeText(this, "No data to share", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show progress dialog
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+                .setTitle("Preparing to Share")
+                .setMessage("Please wait while we prepare your journey for sharing...")
+                .setCancelable(false)
+                .create();
+        progressDialog.show();
+
+        // Perform export in background thread
+        new Thread(() -> {
+            GPXExporter.ExportResult result;
+
+            if ("gpx".equals(format)) {
+                result = GPXExporter.exportToGPX(this, journey, journeyLocalisations);
+            } else {
+                result = GPXExporter.exportToKML(this, journey, journeyLocalisations);
+            }
+
+            // Return to main thread to share result
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+                if (result.success) {
+                    shareFile(result.filePath, format.toUpperCase());
+                } else {
+                    Toast.makeText(this, "Failed to prepare file for sharing: " + result.errorMessage,
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+
+    private void shareFile(String filePath, String format) {
+        try {
+            java.io.File file = new java.io.File(filePath);
+
+            if (!file.exists()) {
+                Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Create content URI using FileProvider
+            android.net.Uri fileUri = androidx.core.content.FileProvider.getUriForFile(
+                    this,
+                    getPackageName() + ".fileprovider",
+                    file
+            );
+
+            // Create share intent
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("application/octet-stream");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Journey: " + (journey != null ? journey.getName() : "My Journey"));
+
+            String emailBody = createEmailBody(format);
+            shareIntent.putExtra(Intent.EXTRA_TEXT, emailBody);
+
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            // Create chooser
+            Intent chooser = Intent.createChooser(shareIntent, "Share Journey (" + format + ")");
+
+            // Verify that the intent will resolve to an activity
+            if (shareIntent.resolveActivity(getPackageManager()) != null) {
+                startActivity(chooser);
+            } else {
+                Toast.makeText(this, "No apps available to share files", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error sharing file", e);
+            Toast.makeText(this, "Error sharing file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String createEmailBody(String format) {
+        StringBuilder body = new StringBuilder();
+
+        if (journey != null) {
+            body.append("Hi there!\n\n");
+            body.append("I'm sharing my journey '").append(journey.getName()).append("' with you.\n\n");
+
+            if (journey.hasDescription()) {
+                body.append("Description: ").append(journey.getDescription()).append("\n\n");
+            }
+
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault());
+            body.append("Journey dates: ")
+                    .append(dateFormat.format(journey.getStart()))
+                    .append(" to ")
+                    .append(dateFormat.format(journey.getEnd()))
+                    .append("\n\n");
+        }
+
+        body.append("Journey details:\n");
+        body.append("• ").append(journeyLocalisations.size()).append(" location points recorded\n");
+
+        if (!journeyLocalisations.isEmpty()) {
+            double minLat = Double.MAX_VALUE;
+            double maxLat = Double.MIN_VALUE;
+            double minLng = Double.MAX_VALUE;
+            double maxLng = Double.MIN_VALUE;
+
+            for (Localisation loc : journeyLocalisations) {
+                minLat = Math.min(minLat, loc.getLatitude());
+                maxLat = Math.max(maxLat, loc.getLatitude());
+                minLng = Math.min(minLng, loc.getLongitude());
+                maxLng = Math.max(maxLng, loc.getLongitude());
+            }
+
+            double approximateDistance = Math.sqrt(
+                    Math.pow(maxLat - minLat, 2) + Math.pow(maxLng - minLng, 2)
+            ) * 111;
+
+            body.append("• Approximate coverage: ").append(String.format(Locale.getDefault(), "%.1f", approximateDistance)).append(" km\n");
+        }
+
+        body.append("• File format: ").append(format).append("\n\n");
+        body.append("You can open this file with GPS apps, mapping software, or import it into your preferred navigation app.\n\n");
+        body.append("Enjoy exploring!\n");
+        body.append("Shared from GeoTrack");
+
+        return body.toString();
     }
 }
